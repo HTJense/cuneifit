@@ -11,7 +11,8 @@ dependencies = [
 	"astropy",
 	"cobaya",
 	"jax",
-	"sacc"
+	"sacc",
+	"optax",
 ]
 
 authors = [
