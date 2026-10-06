@@ -10,7 +10,7 @@ dependencies = [
 	"scipy",
 	"astropy",
 	"cobaya",
-	"jax",
+	"jax<=0.9.0.1",
 	"sacc",
 	"optax",
 ]
