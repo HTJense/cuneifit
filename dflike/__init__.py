@@ -1,5 +1,5 @@
 from .bandpower_foregrounds import BandpowerForegrounds  # noqa: F401
-from .cmb_like import MultiFrequency, CMBLite  # noqa: F401
+from .cmb_like import MultiFrequency, CMBLite, CMBNull  # noqa: F401
 from .cosmopower import Cosmopower  # noqa: F401
 from .lensing import Lensing  # noqa: F401
 from .lensing_corrections import LensingCorrections  # noqa: F401

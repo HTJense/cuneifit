@@ -5,6 +5,7 @@
 data_folder: ACTDR6MFLike/v1.0
 
 input_file: dr6_data.fits
+n_ig: 2
 
 requested_cls: ["tt", "te", "ee"]
 
