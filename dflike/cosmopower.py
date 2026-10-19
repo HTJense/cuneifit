@@ -59,8 +59,9 @@ class Cosmopower(Theory):
         self.parameters = set([])
         self.emulators = _emulators_to_jax(parser, desired=desired)
         for xy in self.emulators:
-            self.parameters |= set(self.emulators[xy].parameters)
-        self.parameters = list(self.parameters)
+            for par in self.emulators[xy].parameters:
+                if par not in self.parameters:
+                    self.parameters.append(par)
         self.indices = {
             xy: jnp.array([
                 self.parameters.index(i) for i in self.emulators[xy].parameters

@@ -34,7 +34,7 @@ class Lensing(GaussianLikelihood):
         self.cov_L = jnp.linalg.cholesky(self.covariance)
         self.logp_const = -0.5 * (
             np.log(2. * np.pi) * len(self.data_vec)
-            - np.linalg.slogdet(self.covariance)[1]
+            + np.linalg.slogdet(self.covariance)[1]
         )
 
     def get_covariance_cholesky(self, theta, **kwargs):

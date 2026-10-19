@@ -30,7 +30,7 @@ def _load_defaults(loader, node):
         try:
             df += next(
                 ext for ext in [""] + config_extensions
-                if (os.path.baseline(df) + ext
+                if (os.path.basename(df) + ext
                     in os.listdir(os.path.dirname(df)))
             )
         except StopIteration:
@@ -74,7 +74,7 @@ def config_from_file(filename: str) -> dict:
 
 # Given a filename, explore several standardized file locations for
 # the path.
-def config_locate_data(path: str) -> list[str]:
+def config_locate_data(path: str) -> str:
     if os.path.exists(path):
         return path
 
