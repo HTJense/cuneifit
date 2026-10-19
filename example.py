@@ -2,7 +2,7 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsc
-from mflike_jax import MFLike_jax, BandpowerForegrounds
+import dflike
 import camb
 
 """ One could use Cosmopower-JAX here for cosmology, but I'll keep cosmology
@@ -23,10 +23,16 @@ pars = camb.set_params(lens_potential_accuracy=8, lmax=8500, **cosmo_params)
 res = camb.get_results(pars)
 spec = res.get_cmb_power_spectra(CMB_unit="muK")["total"]
 
+cls = {
+    "tt": spec[:, 0],
+    "te": spec[:, 3],
+    "ee": spec[:, 1]
+}
+
 """ We can initialize the likelihood and foreground model with the exact same
     MFLike yaml files as the official MFLike likelihood. """
-like = MFLike_jax("act_dr6.yaml")
-fg_model = BandpowerForegrounds("act_dr6_foregrounds.yaml", like)
+like = dflike.MultiFrequency("act_dr6.yaml")
+fg_model = dflike.BandpowerForegrounds("act_dr6_foregrounds.yaml", like)
 
 """ These parameters are (approximately) the ACT best-fitting foreground params
     from Louis et al (2025). """
@@ -132,8 +138,7 @@ def loglike(theta):
     theta_like = theta[:len(like.parameters)]
     theta_fg = theta[len(like.parameters):]
     foregrounds = fg_model.get_foreground_model(theta_fg)
-    logl = -0.5 * like.chisquare(spec[:, 0], spec[:, 3], spec[:, 1],
-                                 foregrounds, theta_like)
+    logl = -0.5 * like.chisquare(theta_like, cls=cls, foregrounds=foregrounds)
     return logl
 
 

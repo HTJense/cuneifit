@@ -1,16 +1,19 @@
 import numpy as np
 import sacc
 import os
+
 import jax.numpy as jnp
-from cobaya.yaml import yaml_load_file
+
 from cobaya.tools import resolve_packages_path
+
+from .config import config_from_file
 from .theory import Theory
 
 
 class LensingCorrections(Theory):
     def __init__(self, config: str | dict):
         if type(config) is str:
-            self.config = yaml_load_file(config)
+            self.config = config_from_file(config)
         elif type(config) is dict:
             self.config = config
         else:

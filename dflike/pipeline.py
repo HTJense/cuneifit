@@ -213,7 +213,7 @@ class Pipeline:
         return F
 
     def minimize(self, theta_start: jnp.ndarray, max_steps: int,
-                 tqdm = lambda x: x, **kwargs) -> list[jnp.ndarray]:
+                 tqdm=lambda x: x, **kwargs) -> list[jnp.ndarray]:
         # Find the best-fitting log-posterior.
         optimizer = optax.adam(**kwargs)
         state = optimizer.init(theta_start)

@@ -2,9 +2,9 @@ import numpy as np
 import sacc
 import os
 import jax.numpy as jnp
-from cobaya.yaml import yaml_load_file
 from cobaya.tools import resolve_packages_path
 
+from .config import config_from_file
 from .likelihood import GaussianLikelihood
 
 
@@ -36,7 +36,7 @@ MFLIKE_DATA_TYPES = {
 class MultiFrequency(GaussianLikelihood):
     def __init__(self, config: str | dict):
         if type(config) is str:
-            self.config = yaml_load_file(config)
+            self.config = config_from_file(config)
         elif type(config) is dict:
             self.config = config
         else:
@@ -230,7 +230,7 @@ class MultiFrequency(GaussianLikelihood):
 class CMBLite(GaussianLikelihood):
     def __init__(self, config: str | dict):
         if type(config) is str:
-            self.config = yaml_load_file(config)
+            self.config = config_from_file(config)
         elif type(config) is dict:
             self.config = config
         else:
@@ -366,7 +366,8 @@ class CMBNull(MultiFrequency):
 
     def get_model(self, theta, *, foregrounds, **kwargs):
         cls = {k: jnp.zeros(self.lmax+1) for k in self.requested_cls}
-        return super().get_model(theta, foregrounds=foregrounds, cls=cls, **kwargs)
+        return super().get_model(theta, foregrounds=foregrounds, cls=cls,
+                                 **kwargs)
 
     def chisquare(self, theta, **kwargs):
         m = self.get_model(theta, **kwargs)

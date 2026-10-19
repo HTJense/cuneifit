@@ -1,9 +1,9 @@
 import numpy as np
 import jax
 import jax.numpy as jnp
-from cobaya.yaml import yaml_load_file
 from scipy import constants
 
+from .config import config_from_file
 from .theory import Theory
 
 from . import fg_model as fgm
@@ -22,7 +22,7 @@ def _cmb2bb(nu, T=T_CMB):
 class BandpowerForegrounds(Theory):
     def __init__(self, config: str | dict, likelihood, lmax: int = 9000):
         if type(config) is str:
-            self.config = yaml_load_file(config)
+            self.config = config_from_file(config)
         elif type(config) is dict:
             self.config = config
         else:
