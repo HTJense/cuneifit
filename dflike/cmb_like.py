@@ -191,7 +191,7 @@ class MultiFrequency(GaussianLikelihood):
         model = self.get_unbinned_model(theta, cls, foregrounds)
         return self.bin_spectra(model)
 
-    def design_matrix(self, theta, n_ig=1):
+    def design_matrix(self, theta, n_ig=1, **kwargs):
         nb = {}
         # Count the number of bins per extracted cross-spectrum.
         for m in self.spec_meta:
@@ -363,30 +363,21 @@ class CMBNull(MultiFrequency):
         self.n_ig = self.config["n_ig"]
 
         self.Sigma_inv = jnp.linalg.inv(self.covariance)
-        self.L_Sigma_inv = jnp.linalg.cholesky(self.Sigma_inv)
-
-    def marginal(self, theta, **kwargs):
-        m = self.get_model(theta, **kwargs)
-        r = self.data_vec - m
-        # Manual whitening to add the covmat offset term.
-        y = jsc.linalg.solve_triangular(self.L_sigma_inv, r, lower=True)
-        M = self.design_matrix(theta, **kwargs)
-        A = jsc.linalg.solve_triangular(self.L_sigma_inv, M, lower=True)
-        Q, R = jnp.linalg.qr(A, mode="reduced")
-        yp = y - Q @ (Q.T @ y)
-        chi2 = jnp.sum(yp ** 2.)
-        logp = -jnp.sum(jnp.log(jnp.abs(jnp.diag(R))))
-
-        return chi2, logp
 
     def get_model(self, theta, *, foregrounds, **kwargs):
         cls = {k: jnp.zeros(self.lmax+1) for k in self.requested_cls}
         return super().get_model(theta, foregrounds=foregrounds, cls=cls, **kwargs)
 
     def chisquare(self, theta, **kwargs):
-        chi2, _ = self.marginal(theta, **kwargs)
+        m = self.get_model(theta, **kwargs)
+        r = self.data_vec - m
+        M = self.design_matrix(theta, **kwargs)
+        Si = self.Sigma_inv
+        S = Si - Si @ M @ jnp.linalg.inv(M.T @ Si @ M) @ M.T @ Si
+        chi2 = r @ S @ r
+
         return chi2
 
     def loglike(self, theta, **kwargs):
-        chi2, logp = self.marginal(theta, **kwargs)
-        return -0.5 * chi2 + logp + self.logp_const
+        chi2 = self.chisquare(theta, **kwargs)
+        return -0.5 * chi2 + self.logp_const
