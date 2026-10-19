@@ -31,8 +31,8 @@ cls = {
 
 """ We can initialize the likelihood and foreground model with the exact same
     MFLike yaml files as the official MFLike likelihood. """
-like = dflike.MultiFrequency("act_dr6.yaml")
-fg_model = dflike.BandpowerForegrounds("act_dr6_foregrounds.yaml", like)
+like = dflike.MultiFrequency("act_dr6")
+fg_model = dflike.BandpowerForegrounds("act_dr6_foregrounds", like)
 
 """ These parameters are (approximately) the ACT best-fitting foreground params
     from Louis et al (2025). """

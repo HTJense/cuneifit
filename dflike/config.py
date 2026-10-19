@@ -43,8 +43,25 @@ def _load_defaults(loader, node):
 DefaultsLoader.add_constructor("!defaults", _load_defaults)
 
 
+# Check if a configuration file exists here. Otherwise, load it from here.
+def config_resolve(filename: str) -> str:
+    from importlib.resources import files
+    if os.path.exists(filename):
+        return filename
+
+    preset_file = files("dflike.presets").joinpath(filename)
+    if not os.path.splitext(preset_file)[1]:
+        preset_file += ".yaml"
+    if os.path.isfile(preset_file):
+        return preset_file
+
+    raise OSError(f"Failed to find file {filename}.")
+
+
 # Load a configuration file.
 def config_from_file(filename: str) -> dict:
+    filename = config_resolve(filename)
+
     with open(filename) as fp:
         text = fp.read()
 
