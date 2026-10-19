@@ -49,7 +49,7 @@ def config_resolve(filename: str) -> str:
     if os.path.exists(filename):
         return filename
 
-    preset_file = files("dflike.presets").joinpath(filename)
+    preset_file = str(files("dflike.presets").joinpath(filename))
     if not os.path.splitext(preset_file)[1]:
         preset_file += ".yaml"
     if os.path.isfile(preset_file):
