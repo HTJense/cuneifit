@@ -90,35 +90,24 @@ params_values = fg_params | sys_params
 
 model_params = like.parameters + fg_model.parameters
 
-priors = dflike.Prior({
-    "calG_all": lambda x: jsc.stats.norm.logpdf(x, loc=1.0, scale=0.003),
+priors = dflike.Prior([
+    lambda calG_all: jsc.stats.norm.logpdf(calG_all, loc=1.0, scale=0.003),
+    lambda cal_dr6_pa4_f220: jsc.stats.norm.logpdf(cal_dr6_pa4_f220, loc=1.0, scale=0.013),
+    lambda cal_dr6_pa5_f090: jsc.stats.norm.logpdf(cal_dr6_pa5_f090, loc=1.0, scale=0.0016),
+    lambda cal_dr6_pa5_f150: jsc.stats.norm.logpdf(cal_dr6_pa5_f150, loc=1.0, scale=0.0020),
+    lambda cal_dr6_pa6_f090: jsc.stats.norm.logpdf(cal_dr6_pa6_f090, loc=1.0, scale=0.0018),
+    lambda cal_dr6_pa6_f150: jsc.stats.norm.logpdf(cal_dr6_pa6_f150, loc=1.0, scale=0.0024),
 
-    "cal_dr6_pa4_f220": lambda x: jsc.stats.norm.logpdf(x, loc=1.0,
-                                                        scale=0.013),
-    "cal_dr6_pa5_f090": lambda x: jsc.stats.norm.logpdf(x, loc=1.0,
-                                                        scale=0.0016),
-    "cal_dr6_pa5_f150": lambda x: jsc.stats.norm.logpdf(x, loc=1.0,
-                                                        scale=0.0020),
-    "cal_dr6_pa6_f090": lambda x: jsc.stats.norm.logpdf(x, loc=1.0,
-                                                        scale=0.0018),
-    "cal_dr6_pa6_f150": lambda x: jsc.stats.norm.logpdf(x, loc=1.0,
-                                                        scale=0.0024),
+    lambda bandint_shift_dr6_pa4_f220: jsc.stats.norm.logpdf(bandint_shift_dr6_pa4_f220, loc=0.0, scale=3.6),
+    lambda bandint_shift_dr6_pa5_f090: jsc.stats.norm.logpdf(bandint_shift_dr6_pa5_f090, loc=0.0, scale=1.0),
+    lambda bandint_shift_dr6_pa5_f150: jsc.stats.norm.logpdf(bandint_shift_dr6_pa5_f150, loc=0.0, scale=1.3),
+    lambda bandint_shift_dr6_pa6_f090: jsc.stats.norm.logpdf(bandint_shift_dr6_pa6_f090, loc=0.0, scale=1.2),
+    lambda bandint_shift_dr6_pa6_f150: jsc.stats.norm.logpdf(bandint_shift_dr6_pa6_f150, loc=0.0, scale=1.1),
 
-    "bandint_shift_dr6_pa4_f220": lambda x: jsc.stats.norm.logpdf(x, loc=0.0,
-                                                                  scale=3.6),
-    "bandint_shift_dr6_pa5_f090": lambda x: jsc.stats.norm.logpdf(x, loc=0.0,
-                                                                  scale=1.0),
-    "bandint_shift_dr6_pa5_f150": lambda x: jsc.stats.norm.logpdf(x, loc=0.0,
-                                                                  scale=1.3),
-    "bandint_shift_dr6_pa6_f090": lambda x: jsc.stats.norm.logpdf(x, loc=0.0,
-                                                                  scale=1.2),
-    "bandint_shift_dr6_pa6_f150": lambda x: jsc.stats.norm.logpdf(x, loc=0.0,
-                                                                  scale=1.1),
-
-    "a_gtt": lambda x: jsc.stats.norm.logpdf(x, loc=7.95, scale=0.32),
-    "a_gte": lambda x: jsc.stats.norm.logpdf(x, loc=0.432, scale=0.03),
-    "a_gee": lambda x: jsc.stats.norm.logpdf(x, loc=0.1681, scale=0.017),
-})
+    lambda a_gtt: jsc.stats.norm.logpdf(a_gtt, loc=7.95, scale=0.32),
+    lambda a_gte: jsc.stats.norm.logpdf(a_gte, loc=0.432, scale=0.03),
+    lambda a_gee: jsc.stats.norm.logpdf(a_gee, loc=0.1681, scale=0.017),
+])
 
 """ Define our log-likelihood and log-prior functions. """
 prior_idx = jnp.array([model_params.index(p) for p in priors.parameters])
