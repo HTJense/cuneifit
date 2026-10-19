@@ -21,7 +21,7 @@ class Pipeline:
             elif isinstance(comp, Likelihood) or isinstance(comp, Theory):
                 used_components.append(comp)
             else:
-                raise ValueError("What am I to do with {comp}?")
+                raise ValueError(f"What am I to do with {comp}?")
 
         components = used_components
         self.components = components

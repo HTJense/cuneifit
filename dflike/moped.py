@@ -15,7 +15,7 @@ class Moped(MultiFrequency):
     def get_model(self, theta, **kwargs):
         model = super().get_model(theta, **kwargs)
         return self.moped_B.T @ model
-    
+
     def get_whitened_residual(self, theta, **kwargs):
         mu = self.get_model(theta, **kwargs)
         y = self.moped_B.T @ self.data_vec - mu
