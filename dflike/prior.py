@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 
 class Prior:
-    def __init__(self, priors: list[Callable]):
+    def __init__(self, priors: list[Callable] = []):
         self.priors = []
         self.H_priors = []
         self.parameters = []
@@ -36,6 +36,6 @@ class Prior:
 
         for pi2, idx in zip(self.H_priors, self.indices):
             H = -pi2(*theta[idx])
-            res = res.at[jnp.ix_(idx,idx)].add(H)
+            res = res.at[jnp.ix_(idx, idx)].add(H)
 
         return res
