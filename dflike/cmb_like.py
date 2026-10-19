@@ -130,7 +130,7 @@ class MultiFrequency(GaussianLikelihood):
         )
         self.logp_const = -0.5 * (
             np.log(2. * np.pi) * len(self.data_vec)
-            - np.linalg.slogdet(self.covariance)[1]
+            + np.linalg.slogdet(self.covariance)[1]
         )
 
     def bin_spectra(self, spec):
@@ -212,9 +212,9 @@ class MultiFrequency(GaussianLikelihood):
             calE1 = theta[self.parameters.index(f"calE_{x1}")]
             calE2 = theta[self.parameters.index(f"calE_{x2}")]
             cal = 1. / (calG ** 2. * calT1 * calT2)
-            if dt in ["cal_0e", "cal_0b"]:
+            if dt in ["cl_0e", "cl_0b"]:
                 cal /= calE2
-            if dt in ["cal_ee", "cal_eb", "cal_bb"]:
+            if dt in ["cl_ee", "cl_eb", "cl_bb"]:
                 cal /= (calE1 * calE2)
 
             b = b0[dt] + np.arange(nb[dt] - len(ids) + n_ig, nb[dt])
@@ -298,7 +298,7 @@ class CMBLite(GaussianLikelihood):
         )
         self.logp_const = -0.5 * (
             np.log(2. * np.pi) * len(self.data_vec)
-            - np.linalg.slogdet(self.covariance)[1]
+            + np.linalg.slogdet(self.covariance)[1]
         )
 
     def bin_spectra(self, spec):

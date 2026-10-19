@@ -15,20 +15,21 @@ class Prior:
 
     def add_prior(self, logpi: Callable[[jnp.ndarray], float]):
         self.priors.append(logpi)
-        self.H_priors.append(jax.hessian(logpi))
 
-        func_pars = logpi.__code__.co_varnames
+        co = logpi.__code__
+        func_pars = co.co_varnames[:co.argcount]
         func_idx = []
         for i, p in enumerate(func_pars):
             if p not in self.parameters:
                 self.parameters.append(p)
             func_idx.append(self.parameters.index(p))
 
+        self.H_priors.append(jax.hessian(logpi, argnums=list(range(len(func_idx)))))
         self.indices.append(jnp.array(func_idx, dtype=int))
 
     def logprior(self, theta: jnp.ndarray) -> jnp.ndarray:
         return jnp.sum(jnp.array([
-            pi(theta[idx]) for pi, idx in zip(self.priors, self.indices)
+            pi(*theta[idx]) for pi, idx in zip(self.priors, self.indices)
         ]))
 
     def fisher(self, theta: jnp.ndarray) -> jnp.ndarray:
