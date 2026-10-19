@@ -304,6 +304,10 @@ class CMBLite(GaussianLikelihood):
             np.log(2. * np.pi) * len(self.data_vec)
             + np.linalg.slogdet(self.covariance)[1]
         )
+        self.cov_L = jnp.linalg.inv(self.covariance)
+
+    def get_covariance_cholesky(self, theta, **kwargs):
+        return self.cov_L
 
     def bin_spectra(self, spec):
         model_vec = jnp.zeros_like(self.data_vec)
