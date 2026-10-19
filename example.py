@@ -126,7 +126,7 @@ prior_idx = jnp.array([model_params.index(p) for p in priors.parameters])
 
 @jax.jit
 def logprior(theta):
-    # Note that this function is not normalized.
+    """ Note that this function is not normalized. """
     return priors.logprior(theta[prior_idx])
 
 
@@ -144,7 +144,8 @@ def logpost(theta):
     return logprior(theta) + loglike(theta)
 
 
-# These are the parameters with respect to which we want to differentiate.
+""" These are the parameters with respect to which we want to
+    differentiate. """
 parameters_baseline = [
     "a_tSZ", "a_kSZ", "alpha_tSZ", "xi",
     "a_c", "beta_cib", "a_p", "a_s", "beta_s",
@@ -159,17 +160,18 @@ parameters_baseline = [
     "bandint_shift_dr6_pa6_f150",
 ]
 
-# We need a log-posterior function that only takes in baseline parameters and
-# keeps the remainder fixed. We create a default list of parameters, and then
-# keep track of the indices of the free parameters.
+""" We need a log-posterior function that only takes in baseline parameters and
+    keeps the remainder fixed. We create a default list of parameters, and then
+    keep track of the indices of the free parameters. """
 fit_idx = jnp.array([model_params.index(p) for p in parameters_baseline])
 theta_default = jnp.array([params_values[p] for p in model_params])
 
 
 @jax.jit
 def logpost_baseline(theta_x):
-    # Note that in numpy we could write `theta[fit_idx] = theta_x`
-    # But in jax, arrays are immutable, so we need to use this `.at[i].set(x)`.
+    """ Note that in numpy we could write `theta[fit_idx] = theta_x`
+        But in jax, arrays are immutable, so we need to use this
+        `theta = theta.at[fit_idx].set(theta_x)`. """
     theta = theta_default.at[fit_idx].set(theta_x)
     return logpost(theta)
 
@@ -186,8 +188,8 @@ grad = jax.jit(jax.grad(logpost_baseline))
 hess = jax.jit(jax.hessian(logpost_baseline))
 
 """ Example: find the best-fitting point with OPTAX. """
-import optax
-import tqdm
+import optax  # noqa: E402
+import tqdm  # noqa: E402
 
 grad_adam = jax.jit(jax.grad(lambda x: -logpost_baseline(x)))
 optimizer = optax.adam(learning_rate=0.1)
@@ -195,16 +197,17 @@ opt_state = optimizer.init(theta_baseline)
 theta_opt = theta_baseline.copy()
 
 for _ in tqdm.tqdm(range(100)):
-	updates, opt_state = optimizer.update(grad_adam(theta_opt), opt_state, theta_opt)
-	theta_opt = optax.apply_updates(theta_opt, updates)
+    updates, opt_state = optimizer.update(grad_adam(theta_opt), opt_state,
+                                          theta_opt)
+    theta_opt = optax.apply_updates(theta_opt, updates)
 
 print(f"log(post) minimum = {logpost_baseline(theta_opt):>9.4f}")
 
-# These two are functions, we can evaluate them at the same values and find
-# derivatives:
+""" These two are functions, we can evaluate them at the same values and find
+    derivatives: """
 H = hess(theta_opt)
 
-# Fisher estimate of the error.
+""" Fisher estimate of the error. """
 cov = jnp.linalg.inv(-H)
 err = np.sqrt(np.diag(cov))
 
