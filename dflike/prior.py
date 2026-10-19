@@ -32,10 +32,10 @@ class Prior:
         ]))
 
     def fisher(self, theta: jnp.ndarray) -> jnp.ndarray:
-        res = jnp.zeros((len(self.parameters)))
+        res = jnp.zeros((len(self.parameters), len(self.parameters)))
 
         for pi2, idx in zip(self.H_priors, self.indices):
-            H = -pi2(theta[idx])
+            H = -pi2(*theta[idx])
             res = res.at[jnp.ix_(idx,idx)].add(H)
 
-        return jnp.diag(res)
+        return res
