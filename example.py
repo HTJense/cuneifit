@@ -2,7 +2,7 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsc
-from mflike_jax import MFLike_jax, BandpowerForegrounds
+import dflike
 import camb
 
 """ One could use Cosmopower-JAX here for cosmology, but I'll keep cosmology
@@ -23,10 +23,16 @@ pars = camb.set_params(lens_potential_accuracy=8, lmax=8500, **cosmo_params)
 res = camb.get_results(pars)
 spec = res.get_cmb_power_spectra(CMB_unit="muK")["total"]
 
+cls = {
+    "tt": spec[:, 0],
+    "te": spec[:, 3],
+    "ee": spec[:, 1]
+}
+
 """ We can initialize the likelihood and foreground model with the exact same
     MFLike yaml files as the official MFLike likelihood. """
-like = MFLike_jax("act_dr6.yaml")
-fg_model = BandpowerForegrounds("act_dr6_foregrounds.yaml", like)
+like = dflike.MultiFrequency("act_dr6")
+fg_model = dflike.BandpowerForegrounds("act_dr6_foregrounds", like)
 
 """ These parameters are (approximately) the ACT best-fitting foreground params
     from Louis et al (2025). """
@@ -84,7 +90,7 @@ params_values = fg_params | sys_params
 
 model_params = like.parameters + fg_model.parameters
 
-priors = {
+priors = dflike.Prior({
     "calG_all": lambda x: jsc.stats.norm.logpdf(x, loc=1.0, scale=0.003),
 
     "cal_dr6_pa4_f220": lambda x: jsc.stats.norm.logpdf(x, loc=1.0,
@@ -112,19 +118,16 @@ priors = {
     "a_gtt": lambda x: jsc.stats.norm.logpdf(x, loc=7.95, scale=0.32),
     "a_gte": lambda x: jsc.stats.norm.logpdf(x, loc=0.432, scale=0.03),
     "a_gee": lambda x: jsc.stats.norm.logpdf(x, loc=0.1681, scale=0.017),
-}
+})
 
 """ Define our log-likelihood and log-prior functions. """
+prior_idx = jnp.array([model_params.index(p) for p in priors.parameters])
 
 
 @jax.jit
 def logprior(theta):
-    # Note that this function is not normalized.
-    params = {k: theta[i] for i, k in enumerate(model_params)}
-    logp = 0.0
-    for k in priors:
-        logp = logp + priors[k](params[k])
-    return logp
+    """ Note that this function is not normalized. """
+    return priors.logprior(theta[prior_idx])
 
 
 @jax.jit
@@ -132,8 +135,7 @@ def loglike(theta):
     theta_like = theta[:len(like.parameters)]
     theta_fg = theta[len(like.parameters):]
     foregrounds = fg_model.get_foreground_model(theta_fg)
-    logl = -0.5 * like.chisquare(spec[:, 0], spec[:, 3], spec[:, 1],
-                                 foregrounds, theta_like)
+    logl = -0.5 * like.chisquare(theta_like, cls=cls, foregrounds=foregrounds)
     return logl
 
 
@@ -142,7 +144,8 @@ def logpost(theta):
     return logprior(theta) + loglike(theta)
 
 
-# These are the parameters with respect to which we want to differentiate.
+""" These are the parameters with respect to which we want to
+    differentiate. """
 parameters_baseline = [
     "a_tSZ", "a_kSZ", "alpha_tSZ", "xi",
     "a_c", "beta_cib", "a_p", "a_s", "beta_s",
@@ -157,17 +160,18 @@ parameters_baseline = [
     "bandint_shift_dr6_pa6_f150",
 ]
 
-# We need a log-posterior function that only takes in baseline parameters and
-# keeps the remainder fixed. We create a default list of parameters, and then
-# keep track of the indices of the free parameters.
+""" We need a log-posterior function that only takes in baseline parameters and
+    keeps the remainder fixed. We create a default list of parameters, and then
+    keep track of the indices of the free parameters. """
 fit_idx = jnp.array([model_params.index(p) for p in parameters_baseline])
 theta_default = jnp.array([params_values[p] for p in model_params])
 
 
 @jax.jit
 def logpost_baseline(theta_x):
-    # Note that in numpy we could write `theta[fit_idx] = theta_x`
-    # But in jax, arrays are immutable, so we need to use this `.at[i].set(x)`.
+    """ Note that in numpy we could write `theta[fit_idx] = theta_x`
+        But in jax, arrays are immutable, so we need to use this
+        `theta = theta.at[fit_idx].set(theta_x)`. """
     theta = theta_default.at[fit_idx].set(theta_x)
     return logpost(theta)
 
@@ -184,8 +188,8 @@ grad = jax.jit(jax.grad(logpost_baseline))
 hess = jax.jit(jax.hessian(logpost_baseline))
 
 """ Example: find the best-fitting point with OPTAX. """
-import optax
-import tqdm
+import optax  # noqa: E402
+import tqdm  # noqa: E402
 
 grad_adam = jax.jit(jax.grad(lambda x: -logpost_baseline(x)))
 optimizer = optax.adam(learning_rate=0.1)
@@ -193,16 +197,17 @@ opt_state = optimizer.init(theta_baseline)
 theta_opt = theta_baseline.copy()
 
 for _ in tqdm.tqdm(range(100)):
-	updates, opt_state = optimizer.update(grad_adam(theta_opt), opt_state, theta_opt)
-	theta_opt = optax.apply_updates(theta_opt, updates)
+    updates, opt_state = optimizer.update(grad_adam(theta_opt), opt_state,
+                                          theta_opt)
+    theta_opt = optax.apply_updates(theta_opt, updates)
 
 print(f"log(post) minimum = {logpost_baseline(theta_opt):>9.4f}")
 
-# These two are functions, we can evaluate them at the same values and find
-# derivatives:
+""" These two are functions, we can evaluate them at the same values and find
+    derivatives: """
 H = hess(theta_opt)
 
-# Fisher estimate of the error.
+""" Fisher estimate of the error. """
 cov = jnp.linalg.inv(-H)
 err = np.sqrt(np.diag(cov))
 
