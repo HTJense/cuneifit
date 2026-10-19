@@ -90,7 +90,7 @@ params_values = fg_params | sys_params
 
 model_params = like.parameters + fg_model.parameters
 
-priors = {
+priors = dflike.Prior({
     "calG_all": lambda x: jsc.stats.norm.logpdf(x, loc=1.0, scale=0.003),
 
     "cal_dr6_pa4_f220": lambda x: jsc.stats.norm.logpdf(x, loc=1.0,
@@ -118,19 +118,16 @@ priors = {
     "a_gtt": lambda x: jsc.stats.norm.logpdf(x, loc=7.95, scale=0.32),
     "a_gte": lambda x: jsc.stats.norm.logpdf(x, loc=0.432, scale=0.03),
     "a_gee": lambda x: jsc.stats.norm.logpdf(x, loc=0.1681, scale=0.017),
-}
+})
 
 """ Define our log-likelihood and log-prior functions. """
+prior_idx = jnp.array([model_params.index(p) for p in priors.parameters])
 
 
 @jax.jit
 def logprior(theta):
     # Note that this function is not normalized.
-    params = {k: theta[i] for i, k in enumerate(model_params)}
-    logp = 0.0
-    for k in priors:
-        logp = logp + priors[k](params[k])
-    return logp
+    return priors.logprior(theta[prior_idx])
 
 
 @jax.jit
