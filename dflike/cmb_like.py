@@ -2,9 +2,8 @@ import numpy as np
 import sacc
 import os
 import jax.numpy as jnp
-from cobaya.tools import resolve_packages_path
 
-from .config import config_from_file
+from .config import config_from_file, config_locate_data
 from .likelihood import GaussianLikelihood
 
 
@@ -43,10 +42,7 @@ class MultiFrequency(GaussianLikelihood):
             raise TypeError("Configuration should be string (filename) or "
                             f"dictionary, but was given {type(config)}.")
 
-        data_path = self.config["data_folder"]
-        if not os.path.isdir(data_path):
-            data_path = os.path.join(resolve_packages_path(), "data",
-                                     self.config["data_folder"])
+        data_path = config_locate_data(self.config["data_folder"])
         s = sacc.Sacc.load_fits(os.path.join(data_path,
                                              self.config["input_file"]))
 
@@ -237,10 +233,7 @@ class CMBLite(GaussianLikelihood):
             raise TypeError("Configuration should be string (filename) or "
                             f"dictionary, but was given {type(config)}.")
 
-        data_path = self.config["data_folder"]
-        if not os.path.isdir(data_path):
-            data_path = os.path.join(resolve_packages_path(), "data",
-                                     self.config["data_folder"])
+        data_path = config_locate_data(self.config["data_folder"])
         s = sacc.Sacc.load_fits(os.path.join(data_path,
                                              self.config["input_file"]))
 

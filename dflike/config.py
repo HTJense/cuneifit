@@ -42,6 +42,7 @@ def _load_defaults(loader, node):
 DefaultsLoader.add_constructor("!defaults", _load_defaults)
 
 
+# Load a configuration file.
 def config_from_file(filename: str) -> dict:
     with open(filename) as fp:
         text = fp.read()
@@ -51,3 +52,22 @@ def config_from_file(filename: str) -> dict:
         os.path.splitext(os.path.basename(filename))[0]
     )
     return yaml.load(text, DefaultsLoader)
+
+
+# Given a filename, explore several standardized file locations for
+# the path.
+def config_locate_data(path: str) -> list[str]:
+    if os.path.exists(path):
+        return path
+
+    try:
+        from cobaya.tools import resolve_packages_path
+
+        if os.path.exists(
+            fullpath := os.path.join(resolve_packages_path(), "data", path)
+        ):
+            return fullpath
+    except:
+        pass
+
+    raise OSError(f"Failed to find data path {path}.")
