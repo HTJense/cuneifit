@@ -363,7 +363,7 @@ class CMBNull(MultiFrequency):
         super().__init__(config)
         self.n_ig = self.config["n_ig"]
 
-        self.Sigma_inv = jnp.linalg.inv(self.covariance)
+        self.inv_cov = jnp.linalg.inv(self.covariance)
 
     def get_model(self, theta, *, foregrounds, **kwargs):
         cls = {k: jnp.zeros(self.lmax+1) for k in self.requested_cls}
@@ -374,7 +374,7 @@ class CMBNull(MultiFrequency):
         m = self.get_model(theta, **kwargs)
         r = self.data_vec - m
         M = self.design_matrix(theta, **kwargs)
-        Si = self.Sigma_inv
+        Si = self.inv_cov
         S = Si - Si @ M @ jnp.linalg.inv(M.T @ Si @ M) @ M.T @ Si
         chi2 = r @ S @ r
 
