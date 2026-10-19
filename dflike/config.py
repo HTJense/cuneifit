@@ -5,6 +5,7 @@ import yaml
 
 config_extensions = [".yml", ".yaml"]
 
+
 # This is copied from the way in which cobaya does it.
 # It allows one to load a block from a different file.
 class DefaultsLoader(yaml.Loader):
@@ -27,10 +28,10 @@ def _load_defaults(loader, node):
     for dfile in defaults_file:
         df = os.path.abspath(os.path.join(folder, dfile))
         try:
-            dfilename += next(
+            df += next(
                 ext for ext in [""] + config_extensions
-                if (os.path.baseline(dfilename) + ext
-                    in os.listdir(os.path.dirname(dfilename)))
+                if (os.path.baseline(df) + ext
+                    in os.listdir(os.path.dirname(df)))
             )
         except StopIteration:
             raise RuntimeError(f"File {dfile} not found in {folder}.")
@@ -67,7 +68,7 @@ def config_locate_data(path: str) -> list[str]:
             fullpath := os.path.join(resolve_packages_path(), "data", path)
         ):
             return fullpath
-    except:
+    except Exception:
         pass
 
     raise OSError(f"Failed to find data path {path}.")

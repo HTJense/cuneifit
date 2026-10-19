@@ -20,7 +20,7 @@ def _cmb2bb(nu, T=T_CMB):
 
 
 class BandpowerForegrounds(Theory):
-    def __init__(self, config: str | dict, likelihood, lmax: int = 9000):
+    def __init__(self, config: str | dict, likelihood):
         if type(config) is str:
             self.config = config_from_file(config)
         elif type(config) is dict:
@@ -117,8 +117,8 @@ class BandpowerForegrounds(Theory):
                     elif hasattr(fgf, tmpl_name):
                         template = getattr(fgf, tmpl_name)
                     else:
-                        raise ImportError(f"""Failed to find {tmpl_name} among
-                        Cl/SED templates. Check spelling?""")
+                        raise ImportError(f"Failed to find {tmpl_name} among "
+                                          "Cl/SED templates. Check spelling?")
 
                     model_products.append(template(**settings))
                 model = mod(*model_products)
@@ -126,9 +126,10 @@ class BandpowerForegrounds(Theory):
                 n_req = model.n
                 n_prov = len(model_config["params"])
 
-                assert n_req == n_prov, f"""Configuration provided {n_prov}
-                parameters for component {component}, but {n_req} are
-                required."""
+                assert n_req == n_prov, (f"Configuration provided {n_prov} "
+                                         "parameters for component "
+                                         f"{component}, but {n_req} are "
+                                         "required.")
 
                 self.foreground_components[cl].append(model)
 
