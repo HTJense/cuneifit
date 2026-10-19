@@ -1,31 +1,41 @@
 import jax
 import jax.numpy as jnp
-from typing import Callable
+from collections.abc import Callable
 
 
 class Prior:
-    def __init__(self, priors: dict = {}):
+    def __init__(self, priors: list[Callable] = []):
         self.priors = []
         self.H_priors = []
         self.parameters = []
+        self.indices = []
 
-        for par in priors:
-            self.add_prior(par, priors[par])
+        for logpi in priors:
+            self.add_prior(logpi)
 
-    def add_prior(self, parameter: str, logprior: Callable):
-        self.priors.append(logprior)
-        self.H_priors.append(jax.hessian(logprior))
-        self.parameters.append(parameter)
+    def add_prior(self, logpi: Callable[[jnp.ndarray], float]):
+        self.priors.append(logpi)
+        self.H_priors.append(jax.hessian(logpi))
+
+        func_pars = logpi.__code__.co_varnames
+        func_idx = []
+        for i, p in enumerate(func_pars):
+            if p not in self.parameters:
+                self.parameters.append(p)
+            func_idx.append(self.parameters.index(p))
+
+        self.indices.append(jnp.array(func_idx, dtype=int))
 
     def logprior(self, theta: jnp.ndarray) -> jnp.ndarray:
         return jnp.sum(jnp.array([
-            pi(th) for pi, th in zip(self.priors, theta)
+            pi(theta[idx]) for pi, idx in zip(self.priors, self.indices)
         ]))
 
     def fisher(self, theta: jnp.ndarray) -> jnp.ndarray:
-        res = jnp.zeros((len(self.parameters)))
+        res = jnp.zeros((len(self.parameters), len(self.parameters)))
 
-        for i, pi2 in enumerate(self.H_priors):
-            res = res.at[i].set(-pi2(theta[i]))
+        for pi2, idx in zip(self.H_priors, self.indices):
+            H = -pi2(*theta[idx])
+            res = res.at[jnp.ix_(idx, idx)].add(H)
 
-        return jnp.diag(res)
+        return res
