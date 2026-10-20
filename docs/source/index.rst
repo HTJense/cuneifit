@@ -11,13 +11,13 @@ Table of Contents
 
 .. toctree::
    :caption: Contents:
-   :maxdepth: 1
+   :maxdepth: 2
    
    installation
    
 .. toctree::
    :caption: General Components
-   :maxdepth: 1
+   :maxdepth: 2
    
    likelihood
    theory
