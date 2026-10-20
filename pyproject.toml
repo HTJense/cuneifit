@@ -28,6 +28,11 @@ classifiers = [
 	"Topic :: Scientific/Engineering :: Astronomy"
 ]
 
+[project.urls]
+Repository = "https://github.com/HTJense/dflike"
+Documentation = "https://dflike.readthedocs.io"
+Issues = "https://github.com/HTJense/dflike/issues"
+
 [project.optional-dependencies]
 cobaya = ["cobaya"]
 
