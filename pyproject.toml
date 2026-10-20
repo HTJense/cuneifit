@@ -1,7 +1,4 @@
 [project]
-requires = ["setuptools >= 77.0.3"]
-build-backend = "setuptools.build_meta"
-
 name = "DFLike"
 version = "2026"
 description = "JAX implementations of Simons Observatory CMB Likelihoods."
@@ -33,6 +30,10 @@ classifiers = [
 
 [project.optional-dependencies]
 cobaya = ["cobaya"]
+
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 include-package-data = true

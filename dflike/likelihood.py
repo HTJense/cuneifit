@@ -5,24 +5,58 @@ import jax.scipy as jsc
 
 
 class Likelihood(ABC):
+    """Any Bayesian Likelihood object L(d|theta).
+
+    Parameters
+    ----------
+    parameters : list[str]
+        A list of parameters expected for any function that takes in `theta`.
+        
+    """
     parameters: list[str]
 
     @abstractmethod
-    def loglike(self, theta, **kwargs):
+    def loglike(self, theta: jnp.ndarray, **kwargs) -> float:
+        """The log-likelihood function of this object.
+
+        Parameters
+        ----------
+        theta : jnp.ndarray
+            A list of scalar parameters used by this function. The meaning of
+            each entry should match the name given by this class' `parameters`
+            member.
+        """
         ...
 
     @abstractmethod
-    def fisher(self, theta, **kwargs):
+    def fisher(self, theta: jnp.ndarray, **kwargs) -> jnp.ndarray:
+        """A shorthand for the Fisher matrix F = -H[ln L].
+
+        Parameters
+        ----------
+        theta : jnp.ndarray
+            A list of scalar parameters used by this function. The meaning of
+            each entry should match the name given by this class' `parameters`
+            member.
+        """
         ...
 
 
 class GaussianLikelihood(Likelihood):
+    """A Gaussian likelihood class.
+
+    This likelihood is a specialization of the form
+    L(d|theta) ~ - 1/2 (d - mu(theta))^T C^-1 (d - mu(theta))
+    with a series of associated functions to improve computational speed.
+    """
     data_vec: jnp.ndarray
     covariance: jnp.ndarray
     logp_const: float
 
     @abstractmethod
     def get_model(self, theta, **kwargs):
+        """The model function mu(theta)
+        """
         ...
 
     def get_covariance(self, theta, **kwargs):
@@ -42,6 +76,9 @@ class GaussianLikelihood(Likelihood):
         return -0.5 * self.chisquare(theta, **kwargs) + self.logp_const
 
     def chisquare(self, theta, **kwargs):
+        """Compute the chi square
+        `chi2 = (d - mu(theta))^T C^-1 (d - mu(theta))`.
+        """
         w = self.get_whitened_residual(theta, **kwargs)
         return jnp.sum(w ** 2)
 
