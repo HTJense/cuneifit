@@ -18,6 +18,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.mathjax",
+    "sphinx_favicon",
 ]
 
 templates_path = ['_templates']
@@ -35,8 +36,14 @@ html_theme_options = {
     "collapse_navigation": False,
     "navigation_depth": 2,
     "includehidden": True,
-    "titles_only": False
+    "titles_only": False,
 }
 html_use_index = False
 html_logo = "_static/logo.svg"
-html_favicon = html_logo
+html_favicon = "_static/logo.svg"
+
+# Favicons
+favicons = {
+    "href": "logo.svg",
+    "type": "image/svg+xml"
+}
