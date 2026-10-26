@@ -27,9 +27,9 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      showgrid="false"
-     inkscape:zoom="1.0607991"
-     inkscape:cx="333.71069"
-     inkscape:cy="130.56195"
+     inkscape:zoom="2.1215982"
+     inkscape:cx="214.93231"
+     inkscape:cy="143.52388"
      inkscape:window-width="1854"
      inkscape:window-height="1011"
      inkscape:window-x="0"
@@ -68,11 +68,11 @@
          x="1.0025034"
          y="71.142387">𒌨𒂠𒊑𒂠𒁮𒂠𒅔𒆭𒈠</tspan></text>
     <path
-       style="fill:none;stroke:#000000;stroke-width:0.865;stroke-linecap:round;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+       style="fill:#f2f2f2;stroke:#f2f2f2;stroke-width:0.865;stroke-linecap:round;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
        d="M 11.148046,51.38365 V 3.9683166"
        id="path1734" />
     <path
-       style="fill:none;stroke:#000000;stroke-width:0.865;stroke-linecap:round;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+       style="fill:#f2f2f2;stroke:#f2f2f2;stroke-width:0.865;stroke-linecap:round;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
        d="m 11.148046,51.38365 h 43.25949"
        id="path1736" />
     <path
@@ -81,13 +81,13 @@
        id="path1738" />
     <text
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;font-size:10.5833px;line-height:1.25;font-family:sans-serif;fill:#ffdd55;fill-opacity:1;stroke:#000000;stroke-width:0.264583"
+       style="font-style:normal;font-weight:normal;font-size:10.5833px;line-height:1.25;font-family:sans-serif;fill:#ffdd55;fill-opacity:1;stroke:#f2f2f2;stroke-width:0.264583"
        x="34.361755"
        y="40.80608"
        id="text2522"><tspan
          sodipodi:role="line"
          id="tspan2520"
-         style="fill:#ffdd55;stroke:#000000;stroke-width:0.264583"
+         style="fill:#ffdd55;stroke:#f2f2f2;stroke-width:0.264583"
          x="34.361755"
          y="40.80608">𒀭</tspan></text>
   </g>

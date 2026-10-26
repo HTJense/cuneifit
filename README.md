@@ -1,6 +1,12 @@
 # Cuneifit
 
-![No AI was used in the creation of this image, if you couldn't tell](docs/source/_static/banner.svg)
+<p align="center">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/HTJense/cuneifit/refs/heads/main/docs/source/_static/banner-dark.svg">
+      <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/HTJense/cuneifit/refs/heads/main/docs/source/_static/banner.svg">
+      <img alt="No AI was used in the creation of this image, if you couldn't tell" src="https://raw.githubusercontent.com/HTJense/cuneifit/refs/heads/main/docs/source/_static/banner-dark.svg">
+    </picture>
+</p>
 
 This is a collection of Differentiable Likelihoods and codes for Simons Observatory.
 
