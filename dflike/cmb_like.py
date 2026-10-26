@@ -248,22 +248,21 @@ class CMBLite(GaussianLikelihood):
                                                  self.config["cov_Bbl_file"]))
 
         self.requested_cls = self.config["requested_cls"]
-        defaults = self.config["defaults"]
 
         data_vec = []
         data_indices = []
-        self.lmax = defaults["lmax"]
+        self.lmax = self.config["lmax"]
         self.spec_meta = []
         self.ells = jnp.arange(2, self.lmax+1)
         i0 = 0
 
         self.parameters = ["calG", "calT", "calP"]
 
-        ex = defaults["experiment"]
+        ex = self.config["experiment"]
         for spec, xy in enumerate(self.requested_cls):
             dt = MFLIKE_DATA_TYPES[xy]
 
-            lmin, lmax = defaults["scales"][xy]
+            lmin, lmax = self.config["scales"][xy]
             t1 = ex + ("_s0" if xy[0] == "t" else "_s2")
             t2 = ex + ("_s0" if xy[1] == "t" else "_s2")
 
@@ -343,7 +342,7 @@ class CMBLite(GaussianLikelihood):
 
         return self.calibrate_spectra(spec, theta)
 
-    def get_model(self, theta, *, cls, **kwargs):
+    def get_model(self, theta, /, *, cls, **kwargs):
         """ Get the binned data model. """
         model = self.get_unbinned_model(theta, cls)
         return self.bin_spectra(model)
@@ -356,12 +355,12 @@ class CMBNull(MultiFrequency):
 
         self.inv_cov = jnp.linalg.inv(self.covariance)
 
-    def get_model(self, theta, *, foregrounds, **kwargs):
+    def get_model(self, theta, /, *, foregrounds, **kwargs):
         cls = {k: jnp.zeros(self.lmax+1) for k in self.requested_cls}
         return super().get_model(theta, foregrounds=foregrounds, cls=cls,
                                  **kwargs)
 
-    def chisquare(self, theta, **kwargs):
+    def chisquare(self, theta, /, **kwargs):
         m = self.get_model(theta, **kwargs)
         r = self.data_vec - m
         M = self.design_matrix(theta, **kwargs)
@@ -371,6 +370,6 @@ class CMBNull(MultiFrequency):
 
         return chi2
 
-    def loglike(self, theta, **kwargs):
+    def loglike(self, theta, /, **kwargs):
         chi2 = self.chisquare(theta, **kwargs)
         return -0.5 * chi2 + self.logp_const

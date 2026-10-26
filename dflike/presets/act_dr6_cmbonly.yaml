@@ -4,10 +4,10 @@ input_file: dr6_data_cmbonly.fits
 
 requested_cls: [tt, te, ee]
 
-defaults:
-  lmax: &lmax 6500
-  scales:
-    tt: [600, *lmax]
-    te: [600, *lmax]
-    ee: [600, *lmax]
-  experiment: dr6_cmb
+lmax: &lmax 6500
+scales:
+  tt: [600, *lmax]
+  te: [600, *lmax]
+  ee: [600, *lmax]
+
+experiment: dr6_cmb
