@@ -17,6 +17,15 @@ jobs:
           python-version: '3.11'
           tags: []
         - os: ubuntu-latest
+          python-version: '3.12'
+          tags: []
+        - os: ubuntu-latest
+          python-version: '3.13'
+          tags: []
+        - os: ubuntu-latest
+          python-version: '3.14'
+          tags: []
+        - os: ubuntu-latest
           python-version: '3.15'
           tags: []
 
