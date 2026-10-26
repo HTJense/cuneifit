@@ -252,10 +252,16 @@ class Pipeline:
         for idx, J, f_idx, like in zip(self.like_indices, jac,
                                        self.like_free_indices,
                                        self.likelihoods):
-            F_like = like.fisher(theta_full[idx], **products)
-            F = F.at[jnp.ix_(f_idx, f_idx)].add(
-                F_like[jnp.ix_(f_idx, f_idx)]
-            )
+            if isinstance(like, GaussianLikelihood):
+                L = like.get_covariance_cholesky(theta_full[idx], **products)
+                W = jsc.linalg.solve_triangular(L, J(theta), lower=True)
+
+                F = F + W.T @ W
+            else:
+                F_like = like.fisher(theta_full[idx], **products)
+                F = F.at[jnp.ix_(f_idx, f_idx)].add(
+                    F_like[jnp.ix_(f_idx, f_idx)]
+                )
 
         return F
 
