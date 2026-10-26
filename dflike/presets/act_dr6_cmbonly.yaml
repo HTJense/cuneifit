@@ -9,20 +9,7 @@ defaults:
   polarizations: [TT, TE, EE]
   lmax: &lmax 6500
   scales:
-    TT: [2, *lmax]
-    TE: [2, *lmax]
-    ET: [2, *lmax]
-    EE: [2, *lmax]
-
-data:
-  experiments:
-    - dr6_cmb
-
-  spectra:
-    - experiments: [dr6_cmb, dr6_cmb]
-      polarizations: [TT, TE, EE]
-      scales:
-        TT: [600, *lmax]
-        TE: [600, *lmax]
-        EE: [600, *lmax]
-
+    TT: [600, *lmax]
+    TE: [600, *lmax]
+    EE: [600, *lmax]
+  experiment: dr6_cmb

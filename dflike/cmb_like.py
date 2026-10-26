@@ -261,38 +261,32 @@ class CMBLite(GaussianLikelihood):
 
         self.parameters = ["calG", "calT", "calP"]
 
-        for entry in self.config["data"]["spectra"]:
-            ex1, ex2 = entry["experiments"]
-            for xy in entry.get("polarizations", defaults["polarizations"]):
-                dt = MFLIKE_DATA_TYPES[xy.lower()]
-                spec = self.requested_cls.index(NORMALIZE_SPECTRA[xy.lower()])
+        ex = defaults["experiment"]
+        for xy in defaults["polarizations"]:
+            dt = MFLIKE_DATA_TYPES[xy.lower()]
+            spec = self.requested_cls.index(NORMALIZE_SPECTRA[xy.lower()])
 
-                t1 = ex1 + ("_s0" if xy[0].lower() == "t" else "_s2")
-                t2 = ex2 + ("_s0" if xy[1].lower() == "t" else "_s2")
-                lmin, lmax = entry["scales"][xy.upper()]
+            t1 = ex + ("_s0" if xy[0].lower() == "t" else "_s2")
+            t2 = ex + ("_s0" if xy[1].lower() == "t" else "_s2")
+            lmin, lmax = defaults["scales"][xy]
 
-                ell, cl, ind = s.get_ell_cl(dt, t1, t2, return_ind=True)
-                m = np.logical_and(ell > lmin, ell < lmax)
-                data_indices += list(ind[m])
-                data_vec += list(cl[m])
-                bpw = t.get_bandpower_windows(ind)
+            ell, cl, ind = s.get_ell_cl(dt, t1, t2, return_ind=True)
+            m = np.logical_and(ell > lmin, ell < lmax)
+            data_indices += list(ind[m])
+            data_vec += list(cl[m])
+            bpw = t.get_bandpower_windows(ind)
 
-                x1, x2 = (
-                    (ex2, ex1) if xy.lower() in ["et", "bt", "be"]
-                    else (ex1, ex2)
-                )
-
-                self.spec_meta.append({
-                    "dt": dt,
-                    "lmin": lmin,
-                    "lmax": lmax,
-                    "ids": i0 + np.arange(len(ind[m])),
-                    "leff": ell[m],
-                    "spec": spec,
-                    "window": jnp.array(bpw.weight.T[m]),
-                    "values": jnp.array(bpw.values)
-                })
-                i0 += len(ind[m])
+            self.spec_meta.append({
+                "dt": dt,
+                "lmin": lmin,
+                "lmax": lmax,
+                "ids": i0 + np.arange(len(ind[m])),
+                "leff": ell[m],
+                "spec": spec,
+                "window": jnp.array(bpw.weight.T[m]),
+                "values": jnp.array(bpw.values)
+            })
+            i0 += len(ind[m])
 
         self.data_vec = jnp.asarray(data_vec)
         data_indices = np.array(data_indices)
@@ -304,7 +298,7 @@ class CMBLite(GaussianLikelihood):
             np.log(2. * np.pi) * len(self.data_vec)
             + np.linalg.slogdet(self.covariance)[1]
         )
-        self.cov_L = jnp.linalg.inv(self.covariance)
+        self.cov_L = jnp.linalg.cholesky(self.covariance)
 
     def get_covariance_cholesky(self, theta, **kwargs):
         return self.cov_L
