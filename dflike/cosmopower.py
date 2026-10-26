@@ -58,7 +58,7 @@ class Cosmopower(Theory):
     """A theory object capable of interfacing with Cosmopower-JAX.
     """
     def __init__(self, parser, desired=["tt", "te", "ee"]):
-        self.parameters = set([])
+        self.parameters = []
         self.emulators = _emulators_to_jax(parser, desired=desired)
         for xy in self.emulators:
             for par in self.emulators[xy].parameters:
