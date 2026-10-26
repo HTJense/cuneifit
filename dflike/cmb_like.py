@@ -247,9 +247,7 @@ class CMBLite(GaussianLikelihood):
             t = sacc.Sacc.load_fits(os.path.join(data_path,
                                                  self.config["cov_Bbl_file"]))
 
-        self.requested_cls = [
-            xy.lower() for xy in self.config["requested_cls"]
-        ]
+        self.requested_cls = self.config["requested_cls"]
         defaults = self.config["defaults"]
 
         data_vec = []
@@ -262,13 +260,12 @@ class CMBLite(GaussianLikelihood):
         self.parameters = ["calG", "calT", "calP"]
 
         ex = defaults["experiment"]
-        for xy in defaults["polarizations"]:
-            dt = MFLIKE_DATA_TYPES[xy.lower()]
-            spec = self.requested_cls.index(NORMALIZE_SPECTRA[xy.lower()])
+        for spec, xy in enumerate(self.requested_cls):
+            dt = MFLIKE_DATA_TYPES[xy]
 
-            t1 = ex + ("_s0" if xy[0].lower() == "t" else "_s2")
-            t2 = ex + ("_s0" if xy[1].lower() == "t" else "_s2")
             lmin, lmax = defaults["scales"][xy]
+            t1 = ex + ("_s0" if xy[0] == "t" else "_s2")
+            t2 = ex + ("_s0" if xy[1] == "t" else "_s2")
 
             ell, cl, ind = s.get_ell_cl(dt, t1, t2, return_ind=True)
             m = np.logical_and(ell > lmin, ell < lmax)

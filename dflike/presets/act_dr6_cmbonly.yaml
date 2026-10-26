@@ -2,14 +2,12 @@ data_folder: ACTDR6CMBonly/v1.0
 
 input_file: dr6_data_cmbonly.fits
 
-requested_cls: ["tt", "te", "ee"]
+requested_cls: [tt, te, ee]
 
 defaults:
-  symmetrize: false
-  polarizations: [TT, TE, EE]
   lmax: &lmax 6500
   scales:
-    TT: [600, *lmax]
-    TE: [600, *lmax]
-    EE: [600, *lmax]
+    tt: [600, *lmax]
+    te: [600, *lmax]
+    ee: [600, *lmax]
   experiment: dr6_cmb
