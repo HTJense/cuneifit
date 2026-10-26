@@ -16,6 +16,9 @@ jobs:
         - os: ubuntu-latest
           python-version: '3.11'
           tags: []
+        - os: ubuntu-latest
+          python-version: '3.15'
+          tags: []
 
     steps:
     - uses: actions/checkout@v4
