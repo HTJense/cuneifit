@@ -67,8 +67,7 @@ parameters and outputs:
     pipeline = dflike.Pipeline([emulators, ...])
 
 
-Method overview
-===============
+.. rubric:: Module overview
 
 .. autoclass:: dflike.cosmopower.Cosmopower
     :members:

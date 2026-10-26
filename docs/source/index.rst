@@ -31,4 +31,3 @@ Table of Contents
    cmb-like
    mf-like
    cosmopower
-   

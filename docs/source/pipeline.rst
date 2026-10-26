@@ -3,8 +3,8 @@ Analysis Pipelines
 
 .. _pipeline:
 
-Method overview
----------------
+
+.. rubric:: Module overview
 
 .. autoclass:: dflike.pipeline.Pipeline
     :members:

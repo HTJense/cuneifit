@@ -3,8 +3,7 @@ Multifrequency Likelihoods
 ==========================
 
 
-Method overview
-===============
+.. rubric:: Module overview
 
 .. autoclass:: dflike.cmb_like.MultiFrequency
     :members:

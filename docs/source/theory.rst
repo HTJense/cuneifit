@@ -93,8 +93,7 @@ In this case, the analysis pipeline will postpone the computation of *P* until
 :code:`custom_theory2.compute(theta_p, Q=Q)` after.
 
 
-Method overview
-===============
+.. rubric:: Module overview
 
 .. autoclass:: dflike.theory.Theory
     :members:

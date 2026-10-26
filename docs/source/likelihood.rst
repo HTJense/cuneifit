@@ -71,8 +71,7 @@ products will be managed internally by the pipeline, and gradients are always
 traced through these products.
 
 
-Method overview
----------------
+.. rubric:: Module overview
 
 .. autoclass:: dflike.likelihood.Likelihood
     :members:
