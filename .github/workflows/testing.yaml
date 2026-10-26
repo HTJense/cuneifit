@@ -40,7 +40,7 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Install package
+    - name: Install cuneifit
       run: |
         python -m pip install .
     - name: Test with pytest
