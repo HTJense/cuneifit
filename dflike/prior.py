@@ -28,12 +28,12 @@ class Prior:
                                          argnums=list(range(len(func_idx)))))
         self.indices.append(jnp.array(func_idx, dtype=int))
 
-    def logprior(self, theta: jnp.ndarray) -> jnp.ndarray:
+    def logprior(self, theta: jnp.ndarray, /) -> jnp.ndarray:
         return jnp.sum(jnp.array([
             pi(*theta[idx]) for pi, idx in zip(self.priors, self.indices)
         ]))
 
-    def fisher(self, theta: jnp.ndarray) -> jnp.ndarray:
+    def fisher(self, theta: jnp.ndarray, /) -> jnp.ndarray:
         res = jnp.zeros((len(self.parameters), len(self.parameters)))
 
         for pi2, idx in zip(self.H_priors, self.indices):

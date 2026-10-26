@@ -7,9 +7,9 @@ class Theory(ABC):
     parameters: list[str]
 
     @abstractmethod
-    def compute(self, theta, **kwargs) -> dict:
+    def compute(self, theta, /, **kwargs) -> dict:
         """Compute this object's products.
-        
+
         Parameters
         ----------
         theta : jnp.ndarray

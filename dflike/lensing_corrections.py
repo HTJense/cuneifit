@@ -64,7 +64,7 @@ class LensingCorrections(Theory):
         self.kk_factor = 2. * np.pi / 4.
         self.parameters = []
 
-    def get_corrections(self, theta, *, cls):
+    def get_corrections(self, theta, cls):
         cls = {
             "tt": cls["tt"][self.ells] * self.dl_factor,
             "te": cls["te"][self.ells] * self.dl_factor,
@@ -79,7 +79,7 @@ class LensingCorrections(Theory):
 
         return 2. * (self.fiducial["kk"] / self.n0) * n0 + n1
 
-    def compute(self, theta, *, cls, **kwargs):
+    def compute(self, theta, /, *, cls, **kwargs):
         return {"corrections": self.get_corrections(theta, cls=cls)}
 
     @property

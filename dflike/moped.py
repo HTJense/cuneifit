@@ -12,11 +12,11 @@ class Moped(MultiFrequency):
         self.covariance = jnp.eye(self.covariance.shape)
         self.logp_const = -0.5 * np.log(2. * np.pi) * len(self.data_vec)
 
-    def get_model(self, theta, **kwargs):
+    def get_model(self, theta, /, **kwargs):
         model = super().get_model(theta, **kwargs)
         return self.moped_B.T @ model
 
-    def get_whitened_residual(self, theta, **kwargs):
+    def get_whitened_residual(self, theta, /, **kwargs):
         mu = self.get_model(theta, **kwargs)
         y = self.moped_B.T @ self.data_vec - mu
         return y

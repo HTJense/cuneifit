@@ -55,6 +55,8 @@ def _emulators_to_jax(parser, desired=["tt", "te", "ee"]):
 
 
 class Cosmopower(Theory):
+    """A theory object capable of interfacing with Cosmopower-JAX.
+    """
     def __init__(self, parser, desired=["tt", "te", "ee"]):
         self.parameters = set([])
         self.emulators = _emulators_to_jax(parser, desired=desired)
@@ -69,7 +71,7 @@ class Cosmopower(Theory):
             for xy in self.emulators
         }
 
-    def compute(self, theta, **kwargs) -> dict:
+    def compute(self, theta, /, **kwargs) -> dict:
         cls = {}
         for xy in self.emulators:
             cls[xy] = self.emulators[xy].predict(theta[self.indices[xy]])

@@ -44,13 +44,13 @@ class Lensing(GaussianLikelihood):
         model_vec = self.binning_matrix @ dlkk
         return model_vec
 
-    def get_unbinned_model(self, theta, *, cls, corrections=None):
+    def get_unbinned_model(self, theta, cls, corrections=None):
         dlkk = 2. * np.pi * cls["pp"][self.ells] / 4.
         if corrections is None:
             return dlkk
         return dlkk + corrections
 
-    def get_model(self, theta, *, cls, corrections=None, **kwargs):
+    def get_model(self, theta, /, *, cls, corrections=None, **kwargs):
         model = self.get_unbinned_model(theta, cls=cls,
                                         corrections=corrections)
         return self.bin_spectra(model)

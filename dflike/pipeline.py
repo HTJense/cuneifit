@@ -14,12 +14,12 @@ class Pipeline:
     """
     def __init__(self, components: list, prior: Optional[Prior] = None):
         """Create a pipeline object.
-        
+
         Parameters
         ----------
         components : list
             A list of components (i.e. Theory and Likelihood objects).
-        
+
         prior : Optional[Prior]
             A prior contribution object.
         """
@@ -130,7 +130,7 @@ class Pipeline:
 
     def compute(self, theta: jnp.ndarray) -> dict:
         """Iterate through all Theory objects and compute their products.
-        
+
         Parameters
         ----------
         theta : jnp.ndarray

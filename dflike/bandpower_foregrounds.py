@@ -176,7 +176,7 @@ class BandpowerForegrounds(Theory):
 
         return jnp.stack(foregrounds)
 
-    def compute(self, theta, **kwargs):
+    def compute(self, theta, /, **kwargs):
         return {"foregrounds": self.get_foreground_model(theta)}
 
     @property

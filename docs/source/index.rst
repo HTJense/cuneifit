@@ -10,10 +10,11 @@ Table of Contents
 =================
 
 .. toctree::
-   :caption: Contents:
+   :caption: Contents
    :maxdepth: 2
    
    installation
+   code-practice
    
 .. toctree::
    :caption: General Components
@@ -22,4 +23,12 @@ Table of Contents
    likelihood
    theory
    pipeline
-
+   
+.. toctree::
+   :caption: Built-In Components
+   :maxdepth: 2
+   
+   cmb-like
+   mf-like
+   cosmopower
+   
