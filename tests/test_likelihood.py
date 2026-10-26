@@ -2,7 +2,8 @@ import pytest  # noqa: F401
 
 
 def test_import():
-    from cuneifit.likelihood import Likelihood, GaussianLikelihood  # noqa: F401
+    from cuneifit.likelihood import Likelihood  # noqa: F401
+    from cuneifit.likelihood import GaussianLikelihood  # noqa: F401
 
 
 def test_inheritance():
@@ -53,4 +54,3 @@ def test_gradient():
     like = TestLikelihood()
     grad = jax.grad(like.loglike)
     assert grad(like.data_vec) == 0.0
-
