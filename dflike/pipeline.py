@@ -211,11 +211,7 @@ class Pipeline:
             self.models = []
 
             for idx, like in zip(self.like_indices, self.likelihoods):
-                if isinstance(like, GaussianLikelihood):
-                    self.models.append(jax.jit(make_model(like, idx)))
-                else:
-                    # Doesn't necessarily exist.
-                    self.models.append(None)
+                self.models.append(jax.jit(make_model(like, idx)))
 
         return self.models
 
@@ -228,11 +224,7 @@ class Pipeline:
 
             for idx, mod, like in zip(self.like_indices, models,
                                       self.likelihoods):
-                if isinstance(like, GaussianLikelihood):
-                    self.jacobians.append(jax.jit(jax.jacfwd(mod)))
-                else:
-                    # Doesn't necessarily exist.
-                    self.jacobians.append(None)
+                self.jacobians.append(jax.jit(jax.jacfwd(mod)))
 
         return self.jacobians
 

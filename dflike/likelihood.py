@@ -16,6 +16,19 @@ class Likelihood(ABC):
     parameters: list[str]
 
     @abstractmethod
+    def get_model(self, theta, /, **kwargs):
+        """The model function :math:`\\mu(\\theta)`.
+
+        Parameters
+        ----------
+        theta : jnp.ndarray
+            A list of scalar parameters used by this function. The meaning of
+            each entry should match the name given by this class' `parameters`
+            member.
+        """
+        ...
+
+    @abstractmethod
     def loglike(self, theta: jnp.ndarray, /, **kwargs) -> float:
         """The log-likelihood function of this object.
 
@@ -53,19 +66,6 @@ class GaussianLikelihood(Likelihood):
     data_vec: jnp.ndarray
     covariance: jnp.ndarray
     logp_const: float
-
-    @abstractmethod
-    def get_model(self, theta, /, **kwargs):
-        """The model function :math:`\\mu(\\theta)`.
-
-        Parameters
-        ----------
-        theta : jnp.ndarray
-            A list of scalar parameters used by this function. The meaning of
-            each entry should match the name given by this class' `parameters`
-            member.
-        """
-        ...
 
     def get_covariance(self, theta, /, **kwargs):
         return self.covariance
