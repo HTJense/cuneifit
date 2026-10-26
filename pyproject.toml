@@ -1,6 +1,6 @@
 [project]
-name = "DFLike"
-version = "2026"
+name = "cuneifit"
+version = "0.1.0"
 description = "JAX implementations of Simons Observatory CMB Likelihoods."
 readme = "README.md"
 license = "CC-BY-4.0"
@@ -29,9 +29,9 @@ classifiers = [
 ]
 
 [project.urls]
-Repository = "https://github.com/HTJense/dflike"
-Documentation = "https://dflike.readthedocs.io"
-Issues = "https://github.com/HTJense/dflike/issues"
+Repository = "https://github.com/HTJense/cuneifit"
+Documentation = "https://cuneifit.readthedocs.io"
+Issues = "https://github.com/HTJense/cuneifit/issues"
 
 [project.optional-dependencies]
 cobaya = ["cobaya"]
@@ -45,7 +45,7 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["dflike"]
+include = ["cuneifit"]
 
 [tool.setuptools.package-data]
-dflike = ["data/*", "presets/*.yaml"]
+cuneifit = ["data/*", "presets/*.yaml"]

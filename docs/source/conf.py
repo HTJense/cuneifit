@@ -6,7 +6,7 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'DFLike'
+project = 'Cuneifit'
 copyright = '2026, Hidde T. Jense'
 author = 'Hidde T. Jense'
 release = '2026'
@@ -38,3 +38,5 @@ html_theme_options = {
     "titles_only": False
 }
 html_use_index = False
+html_logo = "_static/logo.svg"
+html_favicon = html_logo

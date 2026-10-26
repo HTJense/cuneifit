@@ -1,4 +1,6 @@
-# DFLike
+# Cuneifit
+
+![No AI was used in the creation of this image, if you couldn't tell](docs/source/_static/banner.svg)
 
 This is a collection of Differentiable Likelihoods and codes for Simons Observatory.
 
@@ -14,5 +16,5 @@ _This code is in a highly volatile state and does not represent a finished produ
  - [x] CMB lensing.
  - [x] Auto-differentiation through JAX.
  - [x] Examples notebooks
- - [ ] Documentation
+ - [x] Documentation
  - [ ] Examples of gradient MC solvers (e.g. HMC or NUTS) to replicate ACT DR6 cosmology.

@@ -7,8 +7,8 @@ installing the package.
 
 .. code-block :: bash
 
-    git clone git@github.com:HTJense/dflike.git
-    cd dflike
+    git clone git@github.com:HTJense/cuneifit.git
+    cd cuneifit
     pip install .
 
 
@@ -16,7 +16,7 @@ Tutorials
 =========
 
 A series of example notebooks can be found in the
-`notebooks folder <https://github.com/HTJense/dflike/tree/main/notebooks>`_.
+`notebooks folder <https://github.com/HTJense/cuneifit/tree/main/notebooks>`_.
 These notebooks introduce you to the structure of the code by giving some
 example likelihood calls, theory interfaces, analysis runs, and finally an
 overview of the built-in analysis pipeline functionality.

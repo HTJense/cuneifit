@@ -95,5 +95,5 @@ In this case, the analysis pipeline will postpone the computation of *P* until
 
 .. rubric:: Module overview
 
-.. autoclass:: dflike.theory.Theory
+.. autoclass:: cuneifit.theory.Theory
     :members:

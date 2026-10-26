@@ -1,10 +1,18 @@
 ====================
-DFLike documentation
+Cuneifit documentation
 ====================
 
-This is the main documentation for **DFLike**, a package for Differentiable
+.. image:: _static/banner.svg
+   :width: 800px
+   :alt: The image is purposefully low quality so you know it's human-made.
+
+This is the main documentation for **Cuneifit**, a package for Differentiable
 Likelihood and Theory codes for the Simons Observatory and related public
 datasets.
+
+*"Cuneifit"* is not an acronym, but if you want you can say it stands for
+**C**osmological **Un**ified **E**nvironment for **I**nference and **Fit**ting.
+But to be honest I just like cuneiform, but that name was already taken.
 
 
 Table of Contents

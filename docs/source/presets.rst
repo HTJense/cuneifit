@@ -39,7 +39,7 @@ First, the function :code:`config_from_file` loads a configuration yaml file
 returning a dictionary containing the configuration yaml's contents. The
 function will first simply try to open a file with the given file name, and if
 this file does not exist, check if the file exists in the installed
-:code:`dflike/presets` directory. In the latter case, a *.yaml* extension is
+:code:`cuneifit/presets` directory. In the latter case, a *.yaml* extension is
 appended if it doesn't exist yet.
 
 For example, modules can use configuration as:
@@ -49,7 +49,7 @@ For example, modules can use configuration as:
     class CustomTheory(Theory):
         def __init__(self, config: str | dict):
             if type(config) is str:
-                self.config = dflike.config.config_from_file(config)
+                self.config = cuneifit.config.config_from_file(config)
             elif type(config) is dict:
                 self.config = config
 
@@ -66,9 +66,9 @@ Including a preset in the package
 ---------------------------------
 
 If you want to include a dataset or configuration that you created into the
-package directory, you should locate your installation directory for *DFLike*
-and go to the subdirectory :code:`dflike/presets`. Place your yaml file in
-this directory, and any use of dflike will be able to access it. For example,
+package directory, you should locate your installation directory for *Cuneifit*
+and go to the subdirectory :code:`cuneifit/presets`. Place your yaml file in
+this directory, and any use of cuneifit will be able to access it. For example,
 the included :code:`act_dr6.yaml` preset is accessible with
-:code:`dflike.config.config_from_file("act_dr6")`.
+:code:`cuneifit.config.config_from_file("act_dr6")`.
 

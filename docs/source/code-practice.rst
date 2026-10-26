@@ -2,9 +2,9 @@
 Code Practices
 ==============
 
-This page details some of the code practices used throughout the *DFLike*
+This page details some of the code practices used throughout the *Cuneifit*
 package, and explains the best practices that can be used by you if you want
-to release packages that interface with *DFLike*.
+to release packages that interface with *Cuneifit*.
 
 
 Position-only and Keyword-only Arguments
@@ -39,7 +39,7 @@ But always like this:
 
     result = f(theta, A=A)
 
-This is enforced throughout the DFLike code base by using the special parameter
+This is enforced throughout the Cuneifit code base by using the special parameter
 arguments :code:`/` and :code:`*`. Specifically, the function :code:`f` would
 be defined as:
 
@@ -55,7 +55,7 @@ disallows the position-parameter usage for :code:`A`.
 Variable Keyword Arguments
 ==========================
 
-Internally, the keyword-only arguments are often handled within *DFLike*
+Internally, the keyword-only arguments are often handled within *Cuneifit*
 through dictionaries. This means for example that our function :code:`f` is
 called as
 

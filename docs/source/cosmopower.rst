@@ -26,7 +26,7 @@ the pip version of :code:`cosmopower-jax` as-is.
 Loading Emulators
 =================
 
-The DFLike :code:`cosmopower` wrapper is built around the :code:`YAMLParser`
+The Cuneifit :code:`cosmopower` wrapper is built around the :code:`YAMLParser`
 interface found in cosmopower. Pre-trained emulators can be readily loaded in
 from their provided packaging metadata file.
 
@@ -37,20 +37,20 @@ from their provided packaging metadata file.
 
 
 To instantiate the cosmopower code, simply create the parser object and pass
-it to DFLike:
+it to Cuneifit:
 
 .. code-block:: python
 
     import cosmopower as cp
 
     parser = cp.YAMLParser("cp_config_file.yaml")
-    emulators = dflike.Cosmopower(parser)
+    emulators = cuneifit.Cosmopower(parser)
 
 
 .. attention::
 
     Although the cosmopower package can handle emulators other than CMB multipole
-    emulators, the wrapper built into DFLike is currently only capable of these
+    emulators, the wrapper built into Cuneifit is currently only capable of these
     kinds of emulators. It will not load or provide any other computation
     products at the moment.
 
@@ -64,10 +64,10 @@ parameters and outputs:
     theta = jnp.array([parameters[p] for p in emulators.parameters])
     cls = emulators.compute(theta)
 
-    pipeline = dflike.Pipeline([emulators, ...])
+    pipeline = cuneifit.Pipeline([emulators, ...])
 
 
 .. rubric:: Module overview
 
-.. autoclass:: dflike.cosmopower.Cosmopower
+.. autoclass:: cuneifit.cosmopower.Cosmopower
     :members:

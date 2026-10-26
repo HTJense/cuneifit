@@ -4,7 +4,7 @@ sampler:
   mcmc:
 
 likelihood:
-  dflike:
+  cuneifit:
     stop_at_error: true
     like_config_file: act_dr6
     fg_config_file: act_dr6_foregrounds

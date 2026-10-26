@@ -59,7 +59,7 @@ class Lensing(GaussianLikelihood):
 def get_cobaya_class():
     """
         This function allow one to import the lensing likelihood into cobaya
-        using as `dflike.lensing`.
+        using as `cuneifit.lensing`.
     """
     from .cobaya import Lensing_cobaya
 

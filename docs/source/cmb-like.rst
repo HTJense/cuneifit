@@ -39,5 +39,5 @@ The values given here match the :code:`act_dr6_cmbonly` preset.
 
 .. rubric:: Module overview
 
-.. autoclass:: dflike.cmb_like.CMBLite
+.. autoclass:: cuneifit.cmb_like.CMBLite
     :members:

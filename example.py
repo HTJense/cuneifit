@@ -2,7 +2,7 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsc
-import dflike
+import cuneifit
 import camb
 
 """ One could use Cosmopower-JAX here for cosmology, but I'll keep cosmology
@@ -31,8 +31,8 @@ cls = {
 
 """ We can initialize the likelihood and foreground model with the exact same
     MFLike yaml files as the official MFLike likelihood. """
-like = dflike.MultiFrequency("act_dr6")
-fg_model = dflike.BandpowerForegrounds("act_dr6_foregrounds", like)
+like = cuneifit.MultiFrequency("act_dr6")
+fg_model = cuneifit.BandpowerForegrounds("act_dr6_foregrounds", like)
 
 """ These parameters are (approximately) the ACT best-fitting foreground params
     from Louis et al (2025). """
@@ -90,7 +90,7 @@ params_values = fg_params | sys_params
 
 model_params = like.parameters + fg_model.parameters
 
-priors = dflike.Prior([
+priors = cuneifit.Prior([
     lambda calG_all: jsc.stats.norm.logpdf(calG_all, loc=1.0, scale=0.003),
     lambda cal_dr6_pa4_f220: jsc.stats.norm.logpdf(cal_dr6_pa4_f220, loc=1.0,
                                                    scale=0.013),

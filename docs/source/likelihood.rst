@@ -14,7 +14,7 @@ Custom Likelihood Objects
 
 .. _likelihood_custom:
 
-It is possible to write your own likelihood objects and use them within DFLike:
+It is possible to write your own likelihood objects and use them within Cuneifit:
 to do so, simply import the `Likelihood` class and create your own object:
 
 .. code-block:: python
@@ -56,7 +56,7 @@ Using Computational Products
 You can also have the likelihood functions depend on computational products
 coming from :ref:`theory objects <theory_objects>`. The best code practice for
 this is to use *keyword-only* arguments (this is what is done throughout
-*DFLike* internally):
+*Cuneifit* internally):
 
 .. code-block:: python
 
@@ -73,8 +73,8 @@ traced through these products.
 
 .. rubric:: Module overview
 
-.. autoclass:: dflike.likelihood.Likelihood
+.. autoclass:: cuneifit.likelihood.Likelihood
     :members:
 
-.. autoclass:: dflike.likelihood.GaussianLikelihood
+.. autoclass:: cuneifit.likelihood.GaussianLikelihood
     :members:

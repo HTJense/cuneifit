@@ -1,5 +1,5 @@
 """
-    Cobaya wrappers for DFLike.
+    Cobaya wrappers for Cuneifit.
 """
 from . import cmb_like
 from . import moped
