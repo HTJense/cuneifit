@@ -11,8 +11,9 @@ Likelihood and Theory codes for the Simons Observatory and related public
 datasets.
 
 *"Cuneifit"* is not an acronym, but if you want you can say it stands for
-**C**osmological **Un**ified **E**nvironment for **I**nference and **Fit**ting.
-But to be honest I just like cuneiform, but that name was already taken.
+**C**\ osmological **Un**\ ified **E**\ nvironment for **I**\ nference and
+**Fit**\ ting. But to be honest I just like cuneiform, but that name was
+already taken.
 
 
 Table of Contents
