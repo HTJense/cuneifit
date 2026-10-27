@@ -1,0 +1,2 @@
+a: 5
+old_data: !defaults [test1]
