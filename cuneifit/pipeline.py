@@ -9,11 +9,11 @@ from .theory import Theory
 
 
 class Pipeline:
-    """Posterior pipeline that automatically manages parameter and product
+    """ Posterior pipeline that automatically manages parameter and product
     dependencies.
     """
     def __init__(self, components: list, prior: Optional[Prior] = None):
-        """Create a pipeline object.
+        """ Create a pipeline object.
 
         Parameters
         ----------
@@ -78,7 +78,7 @@ class Pipeline:
         self.models = None
 
     def restrict(self, theta_fixed: dict):
-        """Mark any set of parameters as "fixed" for gradient computation.
+        """ Mark any set of parameters as "fixed" for gradient computation.
 
         Sometimes, a set of parameters is degenerate, or too complicated, or
         unnecessary for the computation of the full posterior. In this case,
@@ -112,7 +112,7 @@ class Pipeline:
         ]
         if self.prior is not None:
             self.prior_free_indices = jnp.array([
-                self.prior.parameters.index(p)
+                self.parameters.index(p)
                 for p in self.prior.parameters
                 if p in self.parameters
             ], dtype=int)
@@ -121,6 +121,28 @@ class Pipeline:
         self.jacobians = None
         self.models = None
 
+    def params_to_vec(self, params: dict) -> jnp.ndarray:
+        """ Create a parameter vector from a dictionary.
+
+        Parameters
+        ----------
+        params : dict
+            A dictionary of parameters. The result is a vector that can be
+            used directly as `theta` in other functions.
+        """
+        return jnp.array([params[p] for p in self.parameters])
+
+    def vec_to_params(self, theta: jnp.ndarray) -> dict:
+        """ Create a vector into a dictionary of parameters.
+
+        Parameters
+        ----------
+        theta : jnp.ndarray
+            A vector of values to be turned into a dictionary. The result is a
+            dictionary with key-value pairs.
+        """
+        return {p: theta[i] for i, p in enumerate(self.parameters)}
+
     def expand(self, theta_free: jnp.ndarray) -> jnp.ndarray:
         if theta_free.shape == self.theta_default.shape:
             # This vector has already been expanded, so don't do it again!
@@ -128,15 +150,16 @@ class Pipeline:
 
         return self.theta_default.at[self.free_to_full].set(theta_free)
 
-    def compute(self, theta: jnp.ndarray) -> dict:
-        """Iterate through all Theory objects and compute their products.
+    def compute(self, theta: jnp.ndarray | dict) -> dict:
+        """ Iterate through all Theory objects and compute their products.
 
         Parameters
         ----------
-        theta : jnp.ndarray
+        theta : jnp.ndarray | dict
             A list of scalar parameters used by this function. The meaning of
             each entry should match the name given by this class' `parameters`
-            member.
+            member. If presented as a dictionary of key-value pairs, this
+            internally converts it
         """
         theta_full = self.expand(theta)
         products = {}
@@ -165,6 +188,15 @@ class Pipeline:
         return products
 
     def logprior(self, theta: jnp.ndarray) -> float:
+        """ Compute the log-prior contribution.
+
+        Parameters
+        ----------
+        theta : jnp.ndarray
+            A list of scalar parameters used by this function. The meaning of
+            each entry should match the name given by this class' `parameters`
+            member.
+        """
         logpi = 0.0
         if self.prior is not None:
             theta_full = self.expand(theta)
@@ -173,7 +205,7 @@ class Pipeline:
         return logpi
 
     def loglike(self, theta: jnp.ndarray) -> float:
-        """Compute all likelihood values and yield the log-likelihood.
+        """ Compute all likelihood values and yield the log-likelihood.
 
         Parameters
         ----------
@@ -193,7 +225,7 @@ class Pipeline:
         return loglike
 
     def logposterior(self, theta: jnp.ndarray) -> float:
-        """Alias for `logprior(theta) + loglike(theta)`.
+        """ Alias for `logprior(theta) + loglike(theta)`.
 
         Parameters
         ----------
@@ -204,9 +236,23 @@ class Pipeline:
         """
         return self.logprior(theta) + self.loglike(theta)
 
+    def logposterior_dict(self, params: dict) -> float:
+        """ Compute the log-posterior, using a dictionary as input. Useful for
+            jax pytree functions.
+
+        Parameters
+        ----------
+        params : dict
+            A dictionary of parameters. Only the entries matching the
+            Pipeline's `parameters` member will be used.
+        """
+        theta = self.params_to_vec(params)
+        return self.logposterior(theta)
+
     def get_models(self) -> list[Callable]:
-        """Get a list of data model functions for all likelihoods (if such
-        a function exists)."""
+        """ Get a list of data model functions for all likelihoods (if such
+            a function exists).
+        """
         if self.models is None:
             def make_model(like, idx):
                 def model(x):
@@ -223,8 +269,9 @@ class Pipeline:
         return self.models
 
     def get_jacobians(self) -> list[Callable]:
-        """Get a list of model jacobian functions for all likelihoods (if such
-        a function exists)."""
+        """ Get a list of model jacobian functions for all likelihoods (if such
+            a function exists).
+        """
         if self.jacobians is None:
             models = self.get_models()
             self.jacobians = []
@@ -236,7 +283,8 @@ class Pipeline:
         return self.jacobians
 
     def fisher(self, theta: jnp.ndarray) -> jnp.ndarray:
-        """Compute the Fisher matrix of this pipeline at a given parameter set.
+        """ Compute the Fisher matrix of this pipeline at a given parameter
+            set.
 
         Parameters
         ----------
@@ -254,7 +302,7 @@ class Pipeline:
         if self.prior is not None:
             idx = self.prior_free_indices
             F_prior = self.prior.fisher(theta_full[self.prior_indices])
-            F = F.at[jnp.ix_(idx, idx)].add(F_prior[jnp.ix_(idx, idx)])
+            F = F.at[jnp.ix_(idx, idx)].add(F_prior)
 
         for idx, J, f_idx, like in zip(self.like_indices, jac,
                                        self.like_free_indices,
@@ -274,7 +322,7 @@ class Pipeline:
 
     def minimize(self, theta_start: jnp.ndarray, max_steps: int,
                  tqdm: Callable = lambda x: x, **kwargs) -> list[jnp.ndarray]:
-        """Minimize the log-posterior function using the Adam gradient descent
+        """ Minimize the log-posterior function using the Adam gradient descent
         sampler.
 
         Parameters

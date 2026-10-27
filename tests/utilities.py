@@ -12,7 +12,7 @@ test_likelihood_inv_cov = jnp.linalg.inv(test_likelihood_cov)
 test_likelihood_logp = 0.0
 
 test_prior_mean = 0.0
-test_prior_scale = 1.0
+test_prior_scale = 0.3
 
 test_sample_data = jnp.array([1.0])
 test_sample_chi2 = 0.0
