@@ -46,12 +46,12 @@ jobs:
     - name: Install cosmopower
       continue-on-error: true
       run: |
-        git clone git@github.com:HTJense/cosmopower.git
+        git clone https://github.com/HTJense/cosmopower.git
         cd cosmopower
         python -m pip install .
         python -m pip install cosmopower-jax
         cd ..
-        git clone git@github.com:cosmopower-organization/jense_2024_emulators.git
+        git clone https://github.com/cosmopower-organization/jense_2024_emulators.git
     - name: Test with pytest
       run: |
         pytest
