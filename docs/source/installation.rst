@@ -25,6 +25,10 @@ elaborate tests with some of the following options:
                         your tests. If you set this path to an installation of
                         `this repository <https://github.com/cosmopower-organization/jense_2024_emulators>`_,
                         then the cosmopower tests will run.
+    --dr6-dir="path"    Path to ACT DR6 data for use in the tests. You can
+                        also set the environment variable `CUNEIFIT_DATA_DIR`
+                        to a path contiaining your ACT DR6 data. If neither of
+                        these two are set, the ACT DR6 tests will skip.
 
 
 Tutorials

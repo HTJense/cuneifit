@@ -22,7 +22,8 @@ def emu_dir(request):
 
 @pytest.fixture(scope="session")
 def dr6_dir(request):
-    dr6_dir = request.config.getoption("--dr6-dir")
+    dr6_dir = (request.config.getoption("--dr6-dir") or
+               os.getenv("CUNEIFIT_DATA_DIR", None))
 
     if dr6_dir is None:
         pytest.skip("Skipping test: ACT DR6 dir was not provided")
