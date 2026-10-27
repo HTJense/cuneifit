@@ -143,7 +143,7 @@ def test_pipeline_multipar():
 
 
 def test_pipeline_restrict():
-    """ Test a pipeline with multiple parameters.
+    """ Test restricting a pipeline with multiple parameters.
     """
     from cuneifit import Pipeline
     import utilities
@@ -154,9 +154,11 @@ def test_pipeline_restrict():
     pipeline = Pipeline([like])
     pipeline.restrict({"a": utilities.test_sample2_fiducial[0]})
 
-    assert jnp.isclose(pipeline.loglike(utilities.test_sample2_fiducial[1:]),
-                       utilities.test_sample2_loglike)
+    theta = utilities.test_sample2_fiducial[1:]
+    theta_expanded = pipeline.expand(theta)
+    assert jnp.allclose(utilities.test_sample2_fiducial, theta_expanded)
+
+    assert jnp.isclose(pipeline.loglike(theta), utilities.test_sample2_loglike)
 
     grad = jax.grad(pipeline.loglike)
-    assert jnp.allclose(grad(utilities.test_sample2_fiducial[1:]),
-                        utilities.test_sample2_loglike_grad[1:])
+    assert jnp.allclose(grad(theta), utilities.test_sample2_loglike_grad[1:])
