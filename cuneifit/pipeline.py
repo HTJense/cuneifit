@@ -152,8 +152,11 @@ class Pipeline:
                     break
 
             if not computed_something and len(left_to_compute) > 0:
+                req_inputs = [x for _, th in left_to_compute
+                              for x in th.inputs if x not in products]
                 raise RuntimeError("Failed to compute everything - "
-                                   "Did you check your theory dependencies?")
+                                   "Did you check your theory dependencies?"
+                                   "Missing: " + ", ".join(left_to_compute))
 
         return products
 
@@ -296,13 +299,13 @@ class Pipeline:
             updates, state = optimizer.update(g, state, theta)
             theta = optax.apply_updates(theta, updates)
 
-            if jnp.any(jnp.isnan(theta)):
+            if not jnp.all(jnp.isfinite(theta)):
                 print("Non-finite theta.")
                 break
             if not jnp.isfinite(v):
                 print("Non-finite log-posterior.")
                 break
-            if jnp.any(jnp.isnan(g)):
+            if not jnp.all(jnp.isfinite(g)):
                 print("Non-finite gradient.")
                 break
 
