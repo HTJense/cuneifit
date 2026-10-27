@@ -47,8 +47,7 @@ jobs:
       continue-on-error: true
       run: |
         echo "DR6_DATA_DIR=" >> "$GITHUB_ENV"
-        mkdir dr6_data/ACTDR6CMBonly
-        mkdir dr6_data/ACTDR6MFLike
+        mkdir dr6_data dr6_data/ACTDR6CMBonly dr6_data/ACTDR6MFLike
         cd dr6_data/ACTDR6CMBonly
         wget https://lambda.gsfc.nasa.gov/data/act/pspipe/sacc_files/dr6_data_cmbonly.tar.gz
         tar -zxf dr6_data_cmbonly.tar.gz
