@@ -1,5 +1,4 @@
 import cuneifit
-import utilities
 import pytest  # noqa: F401
 import pathlib
 

@@ -156,7 +156,7 @@ class Pipeline:
                               for x in th.inputs if x not in products]
                 raise RuntimeError("Failed to compute everything - "
                                    "Did you check your theory dependencies?"
-                                   "Missing: " + ", ".join(left_to_compute))
+                                   "Missing: " + ", ".join(req_inputs))
 
         return products
 
