@@ -4,6 +4,12 @@ import jax.numpy as jnp
 import os
 import pytest  # noqa: F401
 
+try:
+    import cosmopower as cp  # noqa: F401
+    import cosmopower_jax.cosmopower_jax as cpj  # noqa: F401
+    CP_IMPORT_OK = True
+except Exception as e:
+    CP_IMPORT_OK = False
 
 parser_filename = "jense_2023_cmb_camb_lcdm.yaml"
 
@@ -19,6 +25,7 @@ def test_act_dr6_lite_preset(dr6_dir):
     cuneifit.CMBLite("act_dr6_cmbonly")
 
 
+@pytest.mark.skipif(not CP_IMPORT_OK, reason="Cosmopower not installed.")
 def test_act_dr6_mflike_fiducial(emu_dir, dr6_dir):
     import cosmopower as cp
 
@@ -50,6 +57,7 @@ def test_act_dr6_mflike_fiducial(emu_dir, dr6_dir):
     assert jnp.isclose(chi2, utilities.test_dr6_chi2)
 
 
+@pytest.mark.skipif(not CP_IMPORT_OK, reason="Cosmopower not installed.")
 def test_act_dr6_lite_fiducial(emu_dir, dr6_dir):
     import cosmopower as cp
     import jax.numpy as jnp
