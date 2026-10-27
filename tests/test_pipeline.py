@@ -28,6 +28,8 @@ def test_pipeline_loglike():
 
 
 def test_prior_creation():
+    """Test whether we can create a prior
+    """
     import jax.scipy as jsc
     from cuneifit import Prior
 
@@ -37,6 +39,8 @@ def test_prior_creation():
 
 
 def test_pipeline_prior():
+    """Test whether we can create a pipeline with a prior
+    """
     from cuneifit import Pipeline, Prior
     import jax.scipy as jsc
     import utilities
@@ -47,6 +51,8 @@ def test_pipeline_prior():
 
 
 def test_pipeline_logpost():
+    """Test whether the pipeline's functions are sane.
+    """
     from cuneifit import Pipeline
     import utilities
     import jax.numpy as jnp
@@ -70,6 +76,8 @@ def test_pipeline_logpost():
 
 
 def test_pipeline_logpost_grad():
+    """Test whether the pipeline's gradients are sane.
+    """
     from cuneifit import Pipeline
     import jax
     import jax.numpy as jnp
@@ -89,3 +97,27 @@ def test_pipeline_logpost_grad():
                        utilities.test_sample_loglike_grad)
     assert jnp.isclose(grad_post(utilities.test_sample_data),
                        utilities.test_sample_logpost_grad)
+
+
+def test_pipeline_logpost_hess():
+    """Test whether the pipeline's hessians are sane.
+    """
+    from cuneifit import Pipeline
+    import jax
+    import jax.numpy as jnp
+    import utilities
+
+    prior = utilities.TestPrior()
+    like = utilities.TestLikelihood()
+    pipeline = Pipeline([like], prior=prior)
+
+    hess_prior = jax.hessian(pipeline.logprior)
+    hess_like = jax.hessian(pipeline.loglike)
+    hess_post = jax.hessian(pipeline.logposterior)
+
+    assert jnp.isclose(hess_prior(utilities.test_sample_data),
+                       utilities.test_sample_logprior_hess)
+    assert jnp.isclose(hess_like(utilities.test_sample_data),
+                       utilities.test_sample_loglike_hess)
+    assert jnp.isclose(hess_post(utilities.test_sample_data),
+                       utilities.test_sample_logpost_hess)
