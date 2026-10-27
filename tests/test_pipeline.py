@@ -121,3 +121,42 @@ def test_pipeline_logpost_hess():
                        utilities.test_sample_loglike_hess)
     assert jnp.isclose(hess_post(utilities.test_sample_data),
                        utilities.test_sample_logpost_hess)
+
+
+def test_pipeline_multipar():
+    """ Test a pipeline with multiple parameters.
+    """
+    from cuneifit import Pipeline
+    import utilities
+    import jax
+    import jax.numpy as jnp
+
+    like = utilities.TestLikelihood2()
+    pipeline = Pipeline([like])
+
+    assert jnp.isclose(pipeline.loglike(utilities.test_sample2_fiducial),
+                       utilities.test_sample2_loglike)
+
+    grad = jax.grad(pipeline.loglike)
+    assert jnp.allclose(grad(utilities.test_sample2_fiducial),
+                        utilities.test_sample2_loglike_grad)
+
+
+def test_pipeline_restrict():
+    """ Test a pipeline with multiple parameters.
+    """
+    from cuneifit import Pipeline
+    import utilities
+    import jax
+    import jax.numpy as jnp
+
+    like = utilities.TestLikelihood2()
+    pipeline = Pipeline([like])
+    pipeline.restrict({"a": utilities.test_sample2_fiducial[0]})
+
+    assert jnp.isclose(pipeline.loglike(utilities.test_sample2_fiducial[1:]),
+                       utilities.test_sample2_loglike)
+
+    grad = jax.grad(pipeline.loglike)
+    assert jnp.allclose(grad(utilities.test_sample2_fiducial[1:]),
+                        utilities.test_sample2_loglike_grad[1:])

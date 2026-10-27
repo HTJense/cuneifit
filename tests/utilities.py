@@ -20,6 +20,19 @@ test_sample_loglike = 0.0
 test_sample_loglike_grad = jnp.array([0.0])
 test_sample_loglike_hess = -test_likelihood_inv_cov
 
+test_sample2_fiducial = jnp.array([1.0, -1.0, 0.5])
+test_likelihood2_xdata = jnp.linspace(0.0, 5.0, 10)
+test_likelihood2_data = (test_sample2_fiducial[0] * test_likelihood2_xdata ** 2.
+                     + test_sample2_fiducial[1] * test_likelihood2_xdata
+                     + test_sample2_fiducial[2])
+test_likelihood2_cov = jnp.diag(jnp.array([1.0] * len(test_likelihood2_xdata)))
+test_likelihood2_logp = 0.0
+
+test_sample2_chi2 = 0.0
+test_sample2_loglike = 0.0
+test_sample2_loglike_grad = jnp.array([0.0, 0.0, 0.0])
+
+
 test_sample_logprior = jsc.stats.norm.logpdf(test_sample_data,
                                              loc=test_prior_mean,
                                              scale=test_prior_scale)
@@ -40,6 +53,17 @@ class TestLikelihood(GaussianLikelihood):
 
     def get_model(self, theta, /, **kwargs):
         return theta[0]
+
+
+class TestLikelihood2(GaussianLikelihood):
+    parameters = ["a", "b", "c"]
+    data_vec = test_likelihood2_data
+    covariance = test_likelihood2_cov
+    logp_const = test_likelihood2_logp
+
+    def get_model(self, theta, /, **kwargs):
+        return (theta[0] * test_likelihood2_xdata ** 2.
+                + theta[1] * test_likelihood2_xdata + theta[2])
 
 
 def TestPrior():
