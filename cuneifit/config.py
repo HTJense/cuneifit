@@ -10,7 +10,7 @@ env_data_path = os.getenv("CUNEIFIT_DATA_DIR", None)
 
 # This is copied from the way in which cobaya does it.
 # It allows one to load a block from a different file.
-class DefaultsLoader(yaml.Loader):
+class DefaultsLoader(yaml.SafeLoader):
     current_folder: Optional[str] = None
     yaml_root_name: Optional[str] = None
 
@@ -37,6 +37,8 @@ def _load_defaults(loader, node):
             )
         except StopIteration:
             raise RuntimeError(f"File {dfile} not found in {folder}.")
+
+        loaded_defaults |= config_from_file(df)
 
     loader.current_folder = folder
     return loaded_defaults
