@@ -17,6 +17,8 @@ parser_filename = "jense_2023_cmb_camb_lcdm.yaml"
 
 def test_cosmopower_parser(emu_dir):
     """Test whether we can load data for cosmopower.
+       (This is not really testing this package, but rather testing whether the
+       cosmopower dependency works).
     """
     cp.YAMLParser(os.path.join(emu_dir, parser_filename), root_dir=emu_dir)
 
