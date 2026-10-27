@@ -19,3 +19,29 @@ def test_cosmopower_parser(emu_dir):
     """Test whether we can load data for cosmopower.
     """
     cp.YAMLParser(os.path.join(emu_dir, parser_filename), root_dir=emu_dir)
+
+
+def test_cosmopower_emulators(emu_dir):
+    """Test whether we can load emulators into jax.
+    """
+    import cuneifit
+
+    parser = cp.YAMLParser(os.path.join(emu_dir, parser_filename), root_dir=emu_dir)
+    cuneifit.Cosmopower(parser)
+    cuneifit.Cosmopower(parser, desired=["tt"])
+    cuneifit.Cosmopower(parser, desired=["tt", "te", "ee", "bb", "pp"])
+
+
+def test_cosmopower_evaluate(emu_dir):
+    """Test whether we can evaluate emulators.
+    """
+    import cuneifit
+    import utilities
+    import jax.numpy as jnp
+
+    parser = cp.YAMLParser(os.path.join(emu_dir, parser_filename), root_dir=emu_dir)
+    cosmopower = cuneifit.Cosmopower(parser, desired=["tt"])
+
+    theta = jnp.array([utilities.test_cosmopower_parameters[p]
+                       for p in cosmopower.parameters])
+    cosmopower.compute(theta)

@@ -31,6 +31,15 @@ test_sample_logpost = test_sample_loglike + test_sample_logprior
 test_sample_logpost_grad = test_sample_loglike_grad + test_sample_logprior_grad
 test_sample_logpost_hess = test_sample_loglike_hess + test_sample_logprior_hess
 
+test_cosmopower_parameters = {
+    "ombh2": 0.022,
+    "omch2": 0.117,
+    "h": 0.67,
+    "ns": 0.96,
+    "logA": 3.044,
+    "tau": 0.06,
+}
+
 
 class TestLikelihood(GaussianLikelihood):
     parameters = ["a"]
