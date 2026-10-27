@@ -43,8 +43,21 @@ jobs:
     - name: Install cuneifit
       run: |
         python -m pip install .
+    - name: Download DR6 data
+      continue-on-error: true
+      run: |
+        echo "DR6_DATA_DIR=" >> "$GITHUB_ENV"
+        mkdir dr6_data/ACTDR6CMBonly
+        mkdir dr6_data/ACTDR6MFLike
+        cd dr6_data/ACTDR6CMBonly
+        wget https://lambda.gsfc.nasa.gov/data/act/pspipe/sacc_files/dr6_data_cmbonly.tar.gz
+        tar -zxf dr6_data_cmbonly.tar.gz
+        cd ../ACTDR6MFLike
+        wget https://lambda.gsfc.nasa.gov/data/act/pspipe/sacc_files/dr6_data.tar.gz
+        tar -zxf dr6_data.tar.gz
+        cd ../..
+        echo "DR6_DATA_DIR=dr6_data" >> "$GITHUB_ENV"
     - name: Install cosmopower
-      id: clone_cp
       continue-on-error: true
       run: |
         echo "CP_DATA_DIR=" >> "$GITHUB_ENV"
@@ -60,5 +73,8 @@ jobs:
         test_args=()
         if [ -n "$CP_DATA_DIR" ]; then
           test_args+=(--emu-dir="$CP_DATA_DIR")
+        fi
+        if [ -n "$DR6_DATA_DIR" ]; then
+          test_args+=(--dr6-dir="$DR6_DATA_DIR")
         fi
         pytest "${test_args[@]}"
