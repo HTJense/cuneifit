@@ -16,6 +16,7 @@ parser_filename = "jense_2023_cmb_camb_lcdm.yaml"
 
 
 @pytest.mark.skipif(COSMOPOWER_SKIP, reason="Cosmopower not installed")
-def test_cosmopower_parser(request):
-    root_dir = request.config.getoption("--emu-dir")
-    cp.YAMLParser(parser_filename, root_dir=root_dir)
+def test_cosmopower_parser(emu_dir):
+    """Test whether we can load data for cosmopower.
+    """
+    cp.YAMLParser(parser_filename, root_dir=emu_dir)

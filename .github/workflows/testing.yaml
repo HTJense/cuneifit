@@ -61,4 +61,4 @@ jobs:
         if [ -n "$CP_DATA_DIR" ]; then
           test_args+=(--emu-dir="$CP_DATA_DIR")
         fi
-        pytest "${args[@]}"
+        pytest "${test_args[@]}"
