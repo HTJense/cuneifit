@@ -4,6 +4,8 @@ import yaml
 
 
 config_extensions = [".yml", ".yaml"]
+additional_paths = []
+env_data_path = os.getenv("CUNEIFIT_DATA_DIR", None)
 
 
 # This is copied from the way in which cobaya does it.
@@ -43,6 +45,10 @@ def _load_defaults(loader, node):
 DefaultsLoader.add_constructor("!defaults", _load_defaults)
 
 
+def config_add_path(path: str):
+    additional_paths.append(path)
+
+
 # Check if a configuration file exists here. Otherwise, load it from here.
 def config_resolve(filename: str) -> str:
     from importlib.resources import files
@@ -73,10 +79,28 @@ def config_from_file(filename: str) -> dict:
 
 
 # Given a filename, explore several standardized file locations for
-# the path.
+# the path. The order of earch
 def config_locate_data(path: str) -> str:
+    """ Given a filename, explore several file locations for the path.
+
+    The order of the search is:
+      1. The current work directory;
+      2. The path given by the environment variable $CUNEIFIT_DATA_DIR;
+      3. Any path added to the search list using `config_add_path`;
+      4. The cobaya data directory.
+    """
     if os.path.exists(path):
         return path
+
+    if (env_data_path is not None and
+       os.path.exists(fullpath := os.path.join(env_data_path, path))):
+        return fullpath
+
+    for extra_path in additional_paths:
+        if os.path.exists(
+            fullpath := os.path.join(extra_path, path)
+        ):
+            return fullpath
 
     try:
         from cobaya.tools import resolve_packages_path

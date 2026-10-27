@@ -12,6 +12,25 @@ installing the package.
     pip install .
 
 
+Running the tests
+=================
+
+Cuneifit has a series of tests that can be run with :code:`pytest`. You can
+simply invoke :code:`pytest` to run the unit tests, or you can run more
+elaborate tests with some of the following options:
+
+.. code-block ::
+
+    --emu-dir="path"    Path to cosmopower emulators that you want to use in
+                        your tests. If you set this path to an installation of
+                        `this repository <https://github.com/cosmopower-organization/jense_2024_emulators>`_,
+                        then the cosmopower tests will run.
+    --dr6-dir="path"    Path to ACT DR6 data for use in the tests. You can
+                        also set the environment variable `CUNEIFIT_DATA_DIR`
+                        to a path contiaining your ACT DR6 data. If neither of
+                        these two are set, the ACT DR6 tests will skip.
+
+
 Tutorials
 =========
 
