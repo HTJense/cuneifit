@@ -20,6 +20,7 @@ def _emulators_to_jax(parser, desired=["tt", "te", "ee"]):
             emu = CosmoPowerJAX("cmb_ee")
         else:
             emu = CosmoPowerJAX(f"cmb_{xy}")
+
         emu.n_parameters = emulators[f"Cl/{xy}"].n_parameters
         emu.parameters = [str(x) for x in emulators[f"Cl/{xy}"].parameters]
         emu.modes = emulators[f"Cl/{xy}"].modes
@@ -42,12 +43,14 @@ def _emulators_to_jax(parser, desired=["tt", "te", "ee"]):
             emu.feature_train_std = emulators[f"Cl/{xy}"].pca_std_
             emu.training_mean = emulators[f"Cl/{xy}"].features_mean_
             emu.training_std = emulators[f"Cl/{xy}"].features_std_
+            emu.probe = "custom_log"
         else:
             # Non-PCA data.
             emu.param_train_mean = emulators[f"Cl/{xy}"].parameters_mean.numpy()  # noqa: E501
             emu.param_train_std = emulators[f"Cl/{xy}"].parameters_std.numpy()
             emu.feature_train_mean = emulators[f"Cl/{xy}"].features_mean.numpy()  # noqa: E501
             emu.feature_train_std = emulators[f"Cl/{xy}"].features_std.numpy()
+            emu.probe = "custom_pca"
 
         results[xy] = emu
 
