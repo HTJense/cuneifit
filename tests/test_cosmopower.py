@@ -1,3 +1,4 @@
+import os
 import pytest
 
 COSMOPOWER_SKIP = True
@@ -18,4 +19,4 @@ parser_filename = "jense_2023_cmb_camb_lcdm.yaml"
 def test_cosmopower_parser(emu_dir):
     """Test whether we can load data for cosmopower.
     """
-    cp.YAMLParser(parser_filename, root_dir=emu_dir)
+    cp.YAMLParser(os.path.join(emu_dir, parser_filename), root_dir=emu_dir)
