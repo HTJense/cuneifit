@@ -8,7 +8,7 @@ try:
     import cosmopower as cp  # noqa: F401
     import cosmopower_jax.cosmopower_jax as cpj  # noqa: F401
     CP_IMPORT_OK = True
-except Exception as e:
+except Exception:
     CP_IMPORT_OK = False
 
 parser_filename = "jense_2023_cmb_camb_lcdm.yaml"
@@ -27,8 +27,6 @@ def test_act_dr6_lite_preset(dr6_dir):
 
 @pytest.mark.skipif(not CP_IMPORT_OK, reason="Cosmopower not installed.")
 def test_act_dr6_mflike_fiducial(emu_dir, dr6_dir):
-    import cosmopower as cp
-
     cuneifit.config.config_add_path(dr6_dir)
 
     parser = cp.YAMLParser(os.path.join(emu_dir, parser_filename),
@@ -59,7 +57,6 @@ def test_act_dr6_mflike_fiducial(emu_dir, dr6_dir):
 
 @pytest.mark.skipif(not CP_IMPORT_OK, reason="Cosmopower not installed.")
 def test_act_dr6_lite_fiducial(emu_dir, dr6_dir):
-    import cosmopower as cp
     import jax.numpy as jnp
 
     cuneifit.config.config_add_path(dr6_dir)

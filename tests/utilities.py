@@ -22,9 +22,9 @@ test_sample_loglike_hess = -test_likelihood_inv_cov
 
 test_sample2_fiducial = jnp.array([1.0, -1.0, 0.5])
 test_likelihood2_xdata = jnp.linspace(0.0, 5.0, 10)
-test_likelihood2_data = (test_sample2_fiducial[0] * test_likelihood2_xdata ** 2.
-                     + test_sample2_fiducial[1] * test_likelihood2_xdata
-                     + test_sample2_fiducial[2])
+test_likelihood2_data = (test_sample2_fiducial[0] * test_likelihood2_xdata ** 2
+                         + test_sample2_fiducial[1] * test_likelihood2_xdata
+                         + test_sample2_fiducial[2])
 test_likelihood2_cov = jnp.diag(jnp.array([1.0] * len(test_likelihood2_xdata)))
 test_likelihood2_logp = 0.0
 
