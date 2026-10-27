@@ -92,8 +92,8 @@ def config_locate_data(path: str) -> str:
     if os.path.exists(path):
         return path
 
-    if (env_data_path is not None and 
-        os.path.exists(fullpath := os.path.join(env_data_path, path))):
+    if (env_data_path is not None and
+       os.path.exists(fullpath := os.path.join(env_data_path, path))):
         return fullpath
 
     for extra_path in additional_paths:
@@ -101,7 +101,7 @@ def config_locate_data(path: str) -> str:
             fullpath := os.path.join(extra_path, path)
         ):
             return fullpath
-    
+
     try:
         from cobaya.tools import resolve_packages_path
 

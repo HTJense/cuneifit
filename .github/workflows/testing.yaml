@@ -63,7 +63,7 @@ jobs:
         git clone https://github.com/HTJense/cosmopower.git
         cd cosmopower
         python -m pip install .
-        python -m pip install cosmopower-jax
+        python -m pip install setuptools cosmopower-jax
         cd ..
         git clone https://github.com/cosmopower-organization/jense_2024_emulators.git
         echo "CP_DATA_DIR=jense_2024_emulators" >> "$GITHUB_ENV"

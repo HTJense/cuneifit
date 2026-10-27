@@ -2,7 +2,7 @@ import cuneifit
 import utilities
 import jax.numpy as jnp
 import os
-import pytest
+import pytest  # noqa: F401
 
 
 parser_filename = "jense_2023_cmb_camb_lcdm.yaml"
@@ -11,12 +11,12 @@ parser_filename = "jense_2023_cmb_camb_lcdm.yaml"
 def test_act_dr6_mflike_preset(dr6_dir):
     cuneifit.config.config_add_path(dr6_dir)
     dr6 = cuneifit.MultiFrequency("act_dr6")
-    fg = cuneifit.BandpowerForegrounds("act_dr6_foregrounds", dr6)
+    cuneifit.BandpowerForegrounds("act_dr6_foregrounds", dr6)
 
 
 def test_act_dr6_lite_preset(dr6_dir):
     cuneifit.config.config_add_path(dr6_dir)
-    dr6 = cuneifit.CMBLite("act_dr6_cmbonly")
+    cuneifit.CMBLite("act_dr6_cmbonly")
 
 
 def test_act_dr6_mflike_fiducial(emu_dir, dr6_dir):
@@ -41,7 +41,7 @@ def test_act_dr6_mflike_fiducial(emu_dir, dr6_dir):
                            for p in cmb.parameters])
     cls = cmb.compute(theta_cmb)
     theta_fg = jnp.array([utilities.test_dr6_parameters[p]
-                           for p in fg.parameters])
+                          for p in fg.parameters])
     fgs = fg.compute(theta_fg)
     theta_like = jnp.array([utilities.test_dr6_parameters[p]
                             for p in dr6.parameters])

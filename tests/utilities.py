@@ -31,6 +31,24 @@ test_sample_logpost = test_sample_loglike + test_sample_logprior
 test_sample_logpost_grad = test_sample_loglike_grad + test_sample_logprior_grad
 test_sample_logpost_hess = test_sample_loglike_hess + test_sample_logprior_hess
 
+
+class TestLikelihood(GaussianLikelihood):
+    parameters = ["a"]
+    data_vec = test_likelihood_data
+    covariance = test_likelihood_cov
+    logp_const = test_likelihood_logp
+
+    def get_model(self, theta, /, **kwargs):
+        return theta[0]
+
+
+def TestPrior():
+    return Prior([
+        lambda a: jsc.stats.norm.logpdf(a, loc=test_prior_mean,
+                                        scale=test_prior_scale)
+    ])
+
+
 test_cosmopower_parameters = {
     "ombh2": 0.022,
     "omch2": 0.117,
@@ -40,14 +58,7 @@ test_cosmopower_parameters = {
     "tau": 0.06,
 }
 
-test_dr6_parameters = {
-    "ombh2": 0.022,
-    "omch2": 0.117,
-    "h": 0.67,
-    "logA": 3.05,
-    "ns": 0.97,
-    "tau": 0.06,
-
+test_dr6_parameters = test_cosmopower_parameters | {
     "a_tSZ": 3.4,
     "alpha_tSZ": -0.5,
     "a_kSZ": 1.5,
@@ -94,14 +105,7 @@ test_dr6_parameters = {
     "bandint_shift_dr6_pa6_f150": 0.0,
 }
 
-test_dr6_lite_parameters = {
-    "ombh2": 0.022,
-    "omch2": 0.117,
-    "h": 0.67,
-    "logA": 3.05,
-    "ns": 0.97,
-    "tau": 0.06,
-
+test_dr6_lite_parameters = test_cosmopower_parameters | {
     "calG": 1.0,
     "calT": 1.0,
     "calP": 0.95,
@@ -112,20 +116,3 @@ test_dr6_chi2 = 2138.0544
 
 test_dr6_lite_logpost = -671.5527
 test_dr6_lite_chi2 = 1112.5648
-
-
-class TestLikelihood(GaussianLikelihood):
-    parameters = ["a"]
-    data_vec = test_likelihood_data
-    covariance = test_likelihood_cov
-    logp_const = test_likelihood_logp
-
-    def get_model(self, theta, /, **kwargs):
-        return theta[0]
-
-
-def TestPrior():
-    return Prior([
-        lambda a: jsc.stats.norm.logpdf(a, loc=test_prior_mean,
-                                        scale=test_prior_scale)
-    ])
