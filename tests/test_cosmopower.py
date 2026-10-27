@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 
 COSMOPOWER_SKIP = True
 
@@ -12,9 +13,9 @@ except Exception:
 
 
 parser_filename = "jense_2023_cmb_camb_lcdm.yaml"
-parser_rootdir = "jense_2024_emulators/"
 
 
 @pytest.mark.skipif(COSMOPOWER_SKIP, reason="Cosmopower not installed")
-def test_cosmopower_parser():
-    cp.YAMLParser(parser_filename, rootdir=parser_rootdir)
+def test_cosmopower_parser(request):
+    root_dir = request.config.getoption("--emu-dir")
+    cp.YAMLParser(parser_filename, root_dir=root_dir)

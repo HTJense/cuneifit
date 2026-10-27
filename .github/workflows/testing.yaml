@@ -2,9 +2,9 @@ name: Testing
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test:
@@ -44,14 +44,21 @@ jobs:
       run: |
         python -m pip install .
     - name: Install cosmopower
+      id: clone_cp
       continue-on-error: true
       run: |
+        echo "CP_DATA_DIR=" >> "$GITHUB_ENV"
         git clone https://github.com/HTJense/cosmopower.git
         cd cosmopower
         python -m pip install .
         python -m pip install cosmopower-jax
         cd ..
         git clone https://github.com/cosmopower-organization/jense_2024_emulators.git
+        echo "CP_DATA_DIR=jense_2024_emulators" >> "$GITHUB_ENV"
     - name: Test with pytest
       run: |
-        pytest
+        test_args=()
+        if [ -n "$CP_DATA_DIR" ]; then
+          test_args+=(--emu-dir="$CP_DATA_DIR")
+        fi
+        pytest "${args[@]}"
