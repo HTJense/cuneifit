@@ -2,10 +2,14 @@ import pytest  # noqa: F401
 
 
 def test_import():
+    """Test whether the Pipeline wants to import.
+    """
     from cuneifit import Pipeline, Prior  # noqa: F401
 
 
 def test_pipeline_creation():
+    """Test whether we can create a pipeline.
+    """
     from cuneifit import Pipeline
     from utilities import TestLikelihood
 
@@ -13,6 +17,8 @@ def test_pipeline_creation():
 
 
 def test_pipeline_loglike():
+    """Test whether a pipeline agrees with a Likelihood
+    """
     from cuneifit import Pipeline
     from utilities import TestLikelihood
 
@@ -22,8 +28,8 @@ def test_pipeline_loglike():
 
 
 def test_prior_creation():
-    from cuneifit import Prior
     import jax.scipy as jsc
+    from cuneifit import Prior
 
     Prior([
         lambda a: jsc.stats.norm.logpdf(a, loc=0.0, scale=1.0)
@@ -33,35 +39,53 @@ def test_prior_creation():
 def test_pipeline_prior():
     from cuneifit import Pipeline, Prior
     import jax.scipy as jsc
-    from utilities import TestLikelihood
+    import utilities
 
     prior = Prior([lambda a: jsc.stats.norm.logpdf(a, loc=0.0, scale=1.0)])
-    like = TestLikelihood()
+    like = utilities.TestLikelihood()
     Pipeline([like], prior=prior)
 
 
 def test_pipeline_logpost():
-    from cuneifit import Pipeline, Prior
-    import jax.scipy as jsc
-    from utilities import TestLikelihood
+    from cuneifit import Pipeline
+    import utilities
+    import jax.numpy as jnp
 
-    prior = Prior([lambda a: jsc.stats.norm.logpdf(a, loc=0.0, scale=1.0)])
-    like = TestLikelihood()
+    prior = utilities.TestPrior()
+    like = utilities.TestLikelihood()
     pipeline = Pipeline([like], prior=prior)
-    target_logpost = jsc.stats.norm.logpdf(0.0, loc=0.0, scale=1.0)
 
-    assert pipeline.logposterior(like.data_vec) == target_logpost
+    assert jnp.isclose(
+        pipeline.logprior(utilities.test_sample_data),
+        utilities.test_sample_logprior
+    ), "Log-prior did not match"
+    assert jnp.isclose(
+        pipeline.loglike(utilities.test_sample_data),
+        utilities.test_sample_loglike
+    ), "Log-likelihood did not match"
+    assert jnp.isclose(
+        pipeline.logposterior(utilities.test_sample_data),
+        utilities.test_sample_logpost
+    ), "Log-posterior did not match"
 
 
 def test_pipeline_logpost_grad():
-    from cuneifit import Pipeline, Prior
+    from cuneifit import Pipeline
     import jax
-    import jax.scipy as jsc
-    from utilities import TestLikelihood
+    import jax.numpy as jnp
+    import utilities
 
-    prior = Prior([lambda a: jsc.stats.norm.logpdf(a, loc=0.0, scale=1.0)])
-    like = TestLikelihood()
+    prior = utilities.TestPrior()
+    like = utilities.TestLikelihood()
     pipeline = Pipeline([like], prior=prior)
-    grad = jax.grad(pipeline.logposterior)
 
-    assert grad(like.data_vec) == 0.0
+    grad_prior = jax.grad(pipeline.logprior)
+    grad_like = jax.grad(pipeline.loglike)
+    grad_post = jax.grad(pipeline.logposterior)
+
+    assert jnp.isclose(grad_prior(utilities.test_sample_data),
+                       utilities.test_sample_logprior_grad)
+    assert jnp.isclose(grad_like(utilities.test_sample_data),
+                       utilities.test_sample_loglike_grad)
+    assert jnp.isclose(grad_post(utilities.test_sample_data),
+                       utilities.test_sample_logpost_grad)

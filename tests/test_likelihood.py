@@ -2,11 +2,15 @@ import pytest  # noqa: F401
 
 
 def test_import():
+    """Test whether the likelihood classes import.
+    """
     from cuneifit.likelihood import Likelihood  # noqa: F401
     from cuneifit.likelihood import GaussianLikelihood  # noqa: F401
 
 
 def test_inheritance():
+    """Test whether we can make a simple subclass of a Likelihood.
+    """
     from cuneifit.likelihood import GaussianLikelihood
     from jax import numpy as jnp
 
@@ -22,17 +26,37 @@ def test_inheritance():
 
 
 def test_chisquare():
-    from utilities import TestLikelihood
-    from jax import numpy as jnp
+    """Test whether the chi square function has sane behaviour.
+    """
+    import utilities
+    import jax.numpy as jnp
 
-    like = TestLikelihood()
-    assert like.chisquare(like.data_vec) == 0.0
+    like = utilities.TestLikelihood()
+    assert jnp.isclose(like.chisquare(utilities.test_sample_data),
+                       utilities.test_sample_chi2)
 
 
 def test_gradient():
+    """Test whether the gradient of the log-likelihood has sane behaviour.
+    """
     import jax
-    from utilities import TestLikelihood
+    import jax.numpy as jnp
+    import utilities
 
-    like = TestLikelihood()
+    like = utilities.TestLikelihood()
     grad = jax.grad(like.loglike)
-    assert grad(like.data_vec) == 0.0
+    assert jnp.isclose(grad(utilities.test_sample_data),
+                       utilities.test_sample_loglike_grad)
+
+
+def test_hessian():
+    """Test whether the hessian of the log-likelihood has sane behaviour.
+    """
+    import jax
+    import jax.numpy as jnp
+    import utilities
+
+    like = utilities.TestLikelihood()
+    hess = jax.hessian(like.loglike)
+    assert jnp.isclose(hess(utilities.test_sample_data),
+                       utilities.test_sample_loglike_hess)
