@@ -152,11 +152,15 @@ class Pipeline:
                     break
 
             if not computed_something and len(left_to_compute) > 0:
-                req_inputs = [x for _, th in left_to_compute
-                              for x in th.inputs if x not in products]
+                unresolved = []
+                for name, th in left_to_compute:
+                    missing = [x for x in th.inputs if x not in products]
+                    if missing:
+                        unresolved += f"{name} requires {', '.join(missing)}"
                 raise RuntimeError("Failed to compute everything - "
                                    "Did you check your theory dependencies?"
-                                   "Missing: " + ", ".join(req_inputs))
+                                   "Unresolved dependencies: "
+                                   + "; ".join(unresolved))
 
         return products
 
