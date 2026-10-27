@@ -9,7 +9,7 @@ dependencies = [
 	"numpy",
 	"scipy",
 	"astropy",
-	"jax<=0.9.0.1",
+	"jax",
 	"sacc",
 	"optax",
 	"pytest",

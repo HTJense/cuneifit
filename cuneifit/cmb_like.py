@@ -117,8 +117,8 @@ class MultiFrequency(GaussianLikelihood):
                     "ids": i0 + np.arange(len(ind[m])),
                     "leff": ell[m],
                     "spec": spec,
-                    "window": jnp.array(bpw.weight.T[m]),
-                    "values": jnp.array(bpw.values)
+                    "window": jnp.array(bpw.weight.T[m].astype(float)),
+                    "values": jnp.array(bpw.values.astype(int))
                 })
                 i0 += len(ind[m])
 
@@ -126,7 +126,7 @@ class MultiFrequency(GaussianLikelihood):
         data_indices = np.array(data_indices)
 
         self.covariance = jnp.array(
-            t.covariance.covmat[data_indices, :][:, data_indices]
+            t.covariance.covmat[data_indices, :][:, data_indices].astype(float)
         )
         self.logp_const = -0.5 * (
             np.log(2. * np.pi) * len(self.data_vec)
@@ -279,8 +279,8 @@ class CMBLite(GaussianLikelihood):
                 "ids": i0 + np.arange(len(ind[m])),
                 "leff": ell[m],
                 "spec": spec,
-                "window": jnp.array(bpw.weight.T[m]),
-                "values": jnp.array(bpw.values)
+                "window": jnp.array(bpw.weight.T[m].astype(float)),
+                "values": jnp.array(bpw.values.astype(int))
             })
             i0 += len(ind[m])
 
@@ -288,7 +288,7 @@ class CMBLite(GaussianLikelihood):
         data_indices = np.array(data_indices)
 
         self.covariance = jnp.array(
-            t.covariance.covmat[data_indices, :][:, data_indices]
+            t.covariance.covmat[data_indices, :][:, data_indices].astype(float)
         )
         self.logp_const = -0.5 * (
             np.log(2. * np.pi) * len(self.data_vec)

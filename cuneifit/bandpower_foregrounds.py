@@ -52,9 +52,9 @@ class BandpowerForegrounds(Theory):
         self.build_foreground_model(self.config["components"])
 
     def load_bandpass_from_file(self, likelihood):
-        self.nu = [likelihood.tracers[exp + "_s0"]["nu"]
+        self.nu = [likelihood.tracers[exp + "_s0"]["nu"].astype(float)
                    for exp in self.experiments]
-        self.bp = [likelihood.tracers[exp + "_s0"]["bp"]
+        self.bp = [likelihood.tracers[exp + "_s0"]["bp"].astype(float)
                    for exp in self.experiments]
 
     def build_bandpass(self, likelihood):
