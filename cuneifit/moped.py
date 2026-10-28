@@ -23,6 +23,6 @@ class Moped(MultiFrequency):
 
 
 def get_cobaya_class():
-    from .cobaya import Moped_cobaya
+    from .cobaya import Moped as Moped_cobaya
 
     return Moped_cobaya
