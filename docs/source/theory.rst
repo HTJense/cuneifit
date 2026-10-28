@@ -86,7 +86,7 @@ have to flag that your Theory object depends on a different result using the
         @property
         def inputs(self):
             # Explicitly flag `Q` as an input for this code.
-            return ["Q"]
+            return ("Q",)
 
 In this case, the analysis pipeline will postpone the computation of *P* until
 *Q* has been calculated, and then calls
