@@ -28,8 +28,8 @@
      inkscape:document-units="mm"
      showgrid="false"
      inkscape:zoom="2.1215982"
-     inkscape:cx="209.2762"
-     inkscape:cy="169.44773"
+     inkscape:cx="166.384"
+     inkscape:cy="170.86176"
      inkscape:window-width="1854"
      inkscape:window-height="1011"
      inkscape:window-x="0"
@@ -45,21 +45,21 @@
      style="display:inline">
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22.7651px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#1a1a1a;fill-opacity:1;stroke:#4d4d4d;stroke-width:0.13444;stroke-dasharray:none"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22.7651px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#333333;fill-opacity:1;stroke:#808080;stroke-width:0.13444;stroke-dasharray:none"
        x="24.551435"
        y="28.630127"
        id="text1570"><tspan
          sodipodi:role="line"
          id="tspan1568"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22.7651px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#1a1a1a;stroke:#4d4d4d;stroke-width:0.13444;stroke-dasharray:none"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22.7651px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#333333;stroke:#808080;stroke-width:0.13444;stroke-dasharray:none"
          x="24.551435"
          y="28.630127">𒌨𒂠</tspan></text>
     <path
-       style="fill:none;stroke:#000000;stroke-width:1.27161;stroke-linecap:round;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+       style="fill:#ffffff;stroke:#000000;stroke-width:1.27161;stroke-linecap:round;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
        d="M 12.827063,70.226471 V 0.52253997"
        id="path1734" />
     <path
-       style="fill:none;stroke:#000000;stroke-width:1.27161;stroke-linecap:round;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+       style="fill:#ffffff;stroke:#000000;stroke-width:1.27161;stroke-linecap:round;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
        d="M 12.827063,70.226471 H 76.421607"
        id="path1736" />
     <path
@@ -68,13 +68,13 @@
        id="path1738" />
     <text
        xml:space="preserve"
-       style="font-style:normal;font-weight:normal;font-size:15.5582px;line-height:1.25;font-family:sans-serif;fill:#ffdd55;fill-opacity:1;stroke:#000000;stroke-width:0.388956"
+       style="font-style:normal;font-weight:normal;font-size:15.5582px;line-height:1.25;font-family:sans-serif;fill:#ffdd55;fill-opacity:1;stroke:#808080;stroke-width:0.388956"
        x="46.952877"
        y="54.676685"
        id="text2522"><tspan
          sodipodi:role="line"
          id="tspan2520"
-         style="fill:#ffdd55;stroke:#000000;stroke-width:0.388956"
+         style="fill:#ffdd55;stroke:#808080;stroke-width:0.388956"
          x="46.952877"
          y="54.676685">𒀭</tspan></text>
   </g>
