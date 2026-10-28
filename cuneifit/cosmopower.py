@@ -77,7 +77,10 @@ class Cosmopower(Theory):
     def compute(self, theta, /, **kwargs) -> dict:
         cls = {}
         for xy in self.emulators:
-            cls[xy] = self.emulators[xy].predict(theta[self.indices[xy]])
+            cl = self.emulators[xy].predict(theta[self.indices[xy]])
+            cls[xy] = jnp.zeros(self.emulators[xy].modes.max()+1)
+            cls[xy] = cls[xy].at[self.emulators[xy].modes].set(cl)
+
             if xy in ["tt", "te", "ee", "bb"]:
                 cls[xy] = cls[xy] * (T_CMB ** 2.)
 
