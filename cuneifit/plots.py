@@ -1,4 +1,8 @@
 """Cuneifit plotting functions.
+
+These functions are designed to interface with either
+`matplotlib <https://matplotlib.org/>`_ or
+`getdist <https://getdist.readthedocs.io/>`_.
 """
 import numpy as np
 import jax.numpy as jnp
@@ -24,7 +28,7 @@ def plot_ellipse(ax, mean, cov, nstd=1., **kwargs):
         j = chain.parameters.index("param_2")
 
         mean = np.array([theta_end[i], theta_end[j])
-        subcov = np.array([[cov[i,i], cov[i,j]], [cov[j,i], cov[j,j]]])
+        subcov = np.array([[cov[i, i], cov[i, j]], [cov[j, i], cov[j, j]]])
 
         cuneifit.plots.plot_ellipse(ax, mean, subcov, nstd=1., alpha=0.5,
                                     facecolor="blue")
@@ -55,10 +59,10 @@ def plot_ellipse(ax, mean, cov, nstd=1., **kwargs):
     from matplotlib import patches as mpt
     from matplotlib import transforms as mtr
 
-    sx = np.sqrt(cov[0,0])
-    sy = np.sqrt(cov[1,1])
+    sx = np.sqrt(cov[0, 0])
+    sy = np.sqrt(cov[1, 1])
     # Compute the x/y scale from the correlation coefficient.
-    R = cov[0,1] / (sx * sy)
+    R = cov[0, 1] / (sx * sy)
     ex = np.sqrt(1. + R)
     ey = np.sqrt(1. - R)
     # Recompute the scale by transforming it from a Gaussian to a chi-square
@@ -121,12 +125,12 @@ def getdist_triangle(plotter, pipeline, theta, parameters=None, line_args=None,
     F = pipeline.fisher(theta)
     cov = jnp.linalg.inv(F)
     idx = jnp.array([pipeline.parameters.index(p) for p in parameters], int)
-    cov = cov[:,idx][idx,:]
+    cov = cov[:, idx][idx, :]
     mean = theta[idx]
 
     for i, p in enumerate(parameters):
         for j, q in enumerate(parameters):
-            ax = plotter.subplots[j,i]
+            ax = plotter.subplots[j, i]
             if ax is None:
                 continue
 
