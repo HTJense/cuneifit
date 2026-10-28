@@ -2,9 +2,24 @@
 Cuneifit
 ========
 
+:Author: **Hidde T. Jense**
+
+:Source: Find the source code on `GitHub <https://github.com/HTJense/cuneifit>`_
+
+:Documentation: Live documentation on `ReadTheDocs <https://cuneifit.readthedocs.io>`_
+
+:Issues: Please report any bugs or issues on the `Issue Tracker <https://github.com/HTJense/cuneifit/issues>`_
+
 .. image :: https://raw.githubusercontent.com/HTJense/cuneifit/refs/heads/main/docs/source/_static/banner.svg
    :target: https://cuneifit.readthedocs.io/
    :alt: No AI was used in the creation of this image, if you couldn't tell.
+
+.. image :: https://github.com/HTJense/cuneifit/actions/workflows/testing.yaml/badge.svg?branch=main
+   :target: https://github.com/HTJense/cuneifit/actions
+.. image :: https://app.readthedocs.org/projects/cuneifit/badge/?version=latest
+   :target: https://cuneifit.readthedocs.io
+.. image :: https://github.com/HTJense/cuneifit/actions/workflows/formatting.yaml/badge.svg?branch=main
+   :target: https://github.com/HTJense/cuneifit/actions
 
 This is a collection of Differentiable Likelihoods and codes for Simons Observatory.
 
