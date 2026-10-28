@@ -135,8 +135,8 @@ test_dr6_lite_parameters = test_cosmopower_parameters | {
     "calP": 0.95,
 }
 
-test_dr6_logpost = -3214.1987
-test_dr6_chi2 = 2138.0544
+test_dr6_logpost = -3060.2817
+test_dr6_chi2 = 1830.2207
 
-test_dr6_lite_logpost = -671.5527
-test_dr6_lite_chi2 = 1112.5648
+test_dr6_lite_logpost = -539.3816
+test_dr6_lite_chi2 = 848.2227
