@@ -42,3 +42,9 @@ Table of Contents
    cmb-like
    mf-like
    cosmopower
+
+.. toctree::
+   :caption: Other
+   :maxdepth: 2
+
+   cobaya

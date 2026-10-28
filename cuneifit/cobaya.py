@@ -10,13 +10,13 @@ import numpy as np
 from typing import Optional
 
 
-class MultiFrequency_cobaya(Likelihood):
-    like_config_file: Optional[str | dict] = None
-    fg_config_file: Optional[str | dict] = None
+class MultiFrequency(Likelihood):
+    like_config: str | dict
+    fg_config: str | dict
 
     def initialize(self):
-        self.like = cmb_like.MultiFrequency(self.like_config_file)
-        self.theory = fg.BandpowerForegrounds(self.fg_config_file, self.like)
+        self.like = cmb_like.MultiFrequency(self.like_config)
+        self.theory = fg.BandpowerForegrounds(self.fg_config, self.like)
 
     def get_requirements(self):
         reqs = {
@@ -41,13 +41,39 @@ class MultiFrequency_cobaya(Likelihood):
         return float(-chi2 / 2.)
 
 
-class Moped_cobaya(Likelihood):
-    like_config_file: Optional[str | dict] = None
-    fg_config_file: Optional[str | dict] = None
+class CMBLite(Likelihood):
+    like_config: str | dict
 
     def initialize(self):
-        self.like = moped.Moped(self.like_config_file)
-        self.theory = fg.BandpowerForegrounds(self.fg_config_file, self.like)
+        self.like = cmb_like.CMBLite(self.like_config)
+
+    def get_requirements(self):
+        reqs = {
+            "Cl": {k: self.like.lmax for k in self.like.requested_cls}
+        }
+
+        for par in self.like.parameters:
+            reqs[par] = None
+
+        return reqs
+
+    def logp(self, **params):
+        cls = self.provider.get_Cl(ell_factor=True)
+        theta_like = np.array([params[k] for k in self.like.parameters])
+        chi2 = self.like.chisquare(theta_like, cls=cls)
+
+        self.log.debug(f"Chi square = {chi2:.2f}")
+
+        return float(-chi2 / 2.)
+
+
+class Moped(Likelihood):
+    like_config: str | dict = {}
+    fg_config: str | dict = {}
+
+    def initialize(self):
+        self.like = moped.Moped(self.like_config)
+        self.theory = fg.BandpowerForegrounds(self.fg_config, self.like)
 
     def get_requirements(self):
         reqs = {
@@ -72,13 +98,13 @@ class Moped_cobaya(Likelihood):
         return float(-chi2 / 2.)
 
 
-class Null_cobaya(Likelihood):
-    like_config_file: Optional[str | dict] = None
-    fg_config_file: Optional[str | dict] = None
+class Null(Likelihood):
+    like_config: str | dict
+    fg_config: str | dict
 
     def initialize(self):
-        self.like = cmb_like.CMBNull(self.like_config_file)
-        self.theory = fg.BandpowerForegrounds(self.fg_config_file, self.like)
+        self.like = cmb_like.CMBNull(self.like_config)
+        self.theory = fg.BandpowerForegrounds(self.fg_config, self.like)
 
     def get_requirements(self):
         return {p: None for p in self.like.parameters + self.theory.parameters}
@@ -94,15 +120,15 @@ class Null_cobaya(Likelihood):
         return float(-chi2 / 2.)
 
 
-class Lensing_cobaya(Likelihood):
-    config_file: str | dict
-    corr_config_file: Optional[str | dict] = None
+class Lensing(Likelihood):
+    like_config: str | dict
+    corr_config: Optional[str | dict] = None
 
     def initialize(self):
-        self.like = lensing.Lensing(self.config_file)
-        if self.corr_config_file is not None:
+        self.like = lensing.Lensing(self.like_config)
+        if self.corr_config is not None:
             self.theory = lensing_corrections.LensingCorrections(
-                self.corr_config_file
+                self.corr_config
             )
         else:
             self.theory = None

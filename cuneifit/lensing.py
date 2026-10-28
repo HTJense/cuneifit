@@ -61,6 +61,6 @@ def get_cobaya_class():
         This function allow one to import the lensing likelihood into cobaya
         using as `cuneifit.lensing`.
     """
-    from .cobaya import Lensing_cobaya
+    from .cobaya import Lensing as Lensing_cobaya
 
     return Lensing_cobaya
