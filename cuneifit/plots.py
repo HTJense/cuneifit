@@ -77,6 +77,13 @@ def plot_ellipse(ax, mean, cov, nstd=1., **kwargs):
     return ellipse
 
 
+def plot_fisher_triangle(pipeline, theta, parameters=None, line_args=None,
+                         contour_args=None):
+    """Make a full triangle plot for a pipeline fisher forecast.
+    """
+    pass
+
+
 def getdist_triangle(plotter, pipeline, theta, parameters=None, line_args=None,
                      **kwargs):
     """Plot the parameter confidence contours directly on a getdist triangle
