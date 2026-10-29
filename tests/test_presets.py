@@ -28,7 +28,7 @@ def test_act_dr6_lite_preset(dr6_dir):
 @pytest.mark.skipif(not CP_IMPORT_OK, reason="Cosmopower not installed.")
 def test_act_dr6_mflike_fiducial(is_github_workflow, emu_dir, dr6_dir):
     if is_github_workflow:
-       pytest.skip("Skipping DR6 mflike test on a github workflow.")
+        pytest.skip("Skipping DR6 mflike test on a github workflow.")
 
     cuneifit.config.config_add_path(dr6_dir)
 

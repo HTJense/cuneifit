@@ -35,6 +35,7 @@ def dr6_dir(request):
     os.environ["CUNEIFIT_DATA_DIR"] = dr6_dir
     return dr6_dir
 
+
 @pytest.fixture
 def is_github_workflow(request):
     return request.config.getoption("--github-workflow")
