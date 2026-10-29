@@ -24,8 +24,9 @@ jobs:
           dr6_data_cmbonly.tar.gz
           dr6_data.tar.gz
         retention-days: 1
-  
+
   test:
+    needs: download-data
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
