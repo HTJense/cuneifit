@@ -41,3 +41,17 @@ class Prior:
             res = res.at[jnp.ix_(idx, idx)].add(H)
 
         return res
+
+    def __add__(self, other: Prior | Callable | list[Callable]):
+        if type(other) is Prior:
+            for prior in other.priors:
+                self.add_prior(prior)
+        elif type(other) is Callable:
+            self.add_prior(other)
+        elif type(other) is list:
+            for o in other:
+                self.__add__(o)
+        else:
+            raise TypeError(f"Cannot add type {type(other)} to Prior.")
+
+        return self
