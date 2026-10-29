@@ -15,14 +15,11 @@ jobs:
       continue-on-error: true
       run: |
         wget https://lambda.gsfc.nasa.gov/data/act/pspipe/sacc_files/dr6_data_cmbonly.tar.gz
-        wget https://lambda.gsfc.nasa.gov/data/act/pspipe/sacc_files/dr6_data.tar.gz
     - name: Upload the data
       uses: actions/upload-artifact@v4
       with:
         name: dr6-data
-        path: |
-          dr6_data_cmbonly.tar.gz
-          dr6_data.tar.gz
+        path: dr6_data_cmbonly.tar.gz
         retention-days: 1
 
   test:
@@ -70,9 +67,8 @@ jobs:
       continue-on-error: true
       run: |
         echo "DR6_DATA_DIR=" >> "$GITHUB_ENV"
-        mkdir dr6_data dr6_data/ACTDR6CMBonly dr6_data/ACTDR6MFLike
+        mkdir dr6_data dr6_data/ACTDR6CMBonly
         tar -zxf dr6_data_cmbonly.tar.gz -C dr6_data/ACTDR6CMBonly
-        tar -zxf dr6_data.tar.gz -C dr6_data/ACTDR6MFLike
         echo "DR6_DATA_DIR=dr6_data" >> "$GITHUB_ENV"
     - name: Install cosmopower
       continue-on-error: true
@@ -87,7 +83,7 @@ jobs:
         echo "CP_DATA_DIR=jense_2024_emulators" >> "$GITHUB_ENV"
     - name: Test with pytest
       run: |
-        test_args=()
+        test_args=(--github-workflow)
         if [ -n "$CP_DATA_DIR" ]; then
           test_args+=(--emu-dir="$CP_DATA_DIR")
         fi
