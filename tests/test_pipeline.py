@@ -13,7 +13,7 @@ def test_pipeline_creation():
     from cuneifit import Pipeline
     from utilities import TestLikelihood
 
-    Pipeline([TestLikelihood()])
+    Pipeline(TestLikelihood())
 
 
 def test_pipeline_loglike():
@@ -23,7 +23,7 @@ def test_pipeline_loglike():
     from utilities import TestLikelihood
 
     like = TestLikelihood()
-    pipeline = Pipeline([like])
+    pipeline = Pipeline(like)
     assert pipeline.loglike(like.data_vec) == 0.0
 
 
@@ -33,9 +33,9 @@ def test_prior_creation():
     import jax.scipy as jsc
     from cuneifit import Prior
 
-    Prior([
+    Prior(
         lambda a: jsc.stats.norm.logpdf(a, loc=0.0, scale=1.0)
-    ])
+    )
 
 
 def test_pipeline_prior():
@@ -45,9 +45,8 @@ def test_pipeline_prior():
     import jax.scipy as jsc
     import utilities
 
-    prior = Prior([lambda a: jsc.stats.norm.logpdf(a, loc=0.0, scale=1.0)])
-    like = utilities.TestLikelihood()
-    Pipeline([like], prior=prior)
+    prior = Prior(lambda a: jsc.stats.norm.logpdf(a, loc=0.0, scale=1.0))
+    Pipeline(prior, utilities.TestLikelihood())
 
 
 def test_pipeline_logpost():
@@ -57,9 +56,7 @@ def test_pipeline_logpost():
     import utilities
     import jax.numpy as jnp
 
-    prior = utilities.TestPrior()
-    like = utilities.TestLikelihood()
-    pipeline = Pipeline([like], prior=prior)
+    pipeline = Pipeline(utilities.TestPrior(), utilities.TestLikelihood())
 
     assert jnp.isclose(
         pipeline.logprior(utilities.test_sample_data),
@@ -83,9 +80,7 @@ def test_pipeline_logpost_grad():
     import jax.numpy as jnp
     import utilities
 
-    prior = utilities.TestPrior()
-    like = utilities.TestLikelihood()
-    pipeline = Pipeline([like], prior=prior)
+    pipeline = Pipeline(utilities.TestPrior(), utilities.TestLikelihood())
 
     grad_prior = jax.grad(pipeline.logprior)
     grad_like = jax.grad(pipeline.loglike)
@@ -107,9 +102,7 @@ def test_pipeline_logpost_hess():
     import jax.numpy as jnp
     import utilities
 
-    prior = utilities.TestPrior()
-    like = utilities.TestLikelihood()
-    pipeline = Pipeline([like], prior=prior)
+    pipeline = Pipeline(utilities.TestPrior(), utilities.TestLikelihood())
 
     hess_prior = jax.hessian(pipeline.logprior)
     hess_like = jax.hessian(pipeline.loglike)
@@ -131,8 +124,7 @@ def test_pipeline_multipar():
     import jax
     import jax.numpy as jnp
 
-    like = utilities.TestLikelihood2()
-    pipeline = Pipeline([like])
+    pipeline = Pipeline(utilities.TestLikelihood2())
 
     assert jnp.isclose(pipeline.loglike(utilities.test_sample2_fiducial),
                        utilities.test_sample2_loglike)
@@ -151,7 +143,7 @@ def test_pipeline_restrict():
     import jax.numpy as jnp
 
     like = utilities.TestLikelihood2()
-    pipeline = Pipeline([like])
+    pipeline = Pipeline(like)
     pipeline.restrict({"a": utilities.test_sample2_fiducial[0]})
 
     theta = utilities.test_sample2_fiducial[1:]

@@ -34,7 +34,7 @@ def test_act_dr6_mflike_fiducial(emu_dir, dr6_dir):
     cmb = cuneifit.Cosmopower(parser)
     dr6 = cuneifit.MultiFrequency("act_dr6")
     fg = cuneifit.BandpowerForegrounds("act_dr6_foregrounds", dr6)
-    pipeline = cuneifit.Pipeline([cmb, dr6, fg])
+    pipeline = cuneifit.Pipeline(cmb, dr6, fg)
 
     theta = jnp.array([utilities.test_dr6_parameters[p]
                        for p in pipeline.parameters])
@@ -65,7 +65,7 @@ def test_act_dr6_lite_fiducial(emu_dir, dr6_dir):
                            root_dir=emu_dir)
     cmb = cuneifit.Cosmopower(parser)
     dr6 = cuneifit.CMBLite("act_dr6_cmbonly")
-    pipeline = cuneifit.Pipeline([cmb, dr6])
+    pipeline = cuneifit.Pipeline(cmb, dr6)
 
     theta = jnp.array([utilities.test_dr6_lite_parameters[p]
                        for p in pipeline.parameters])

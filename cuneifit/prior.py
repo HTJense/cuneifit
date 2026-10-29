@@ -1,10 +1,58 @@
+from __future__ import annotations
 import jax
 import jax.numpy as jnp
 from collections.abc import Callable
 
 
 class Prior:
-    def __init__(self, priors: list[Callable] = []):
+    """A Prior class is a set of priors that contain contributions to the
+    log-posterior.
+
+    In general, priors are created from a list of lambda functions. For
+    example:
+
+    .. code-block:: python
+
+        prior = Prior(
+            # A 1% calibration uncertainty prior.
+            lambda calibration: jsc.stats.norm.logpdf(calibration, 1.0, 0.01),
+            # A prior on optical depth tau = 0.06 +/- 0.01
+            lambda tau: jsc.stats.norm.logpdf(tau, 0.06, 0.01),
+            # A joint prior on the SZ amplitudes (cf. Planck 2018)
+            lambda a_kSZ, a_tSZ: jsc.stats.norm.logpdf(
+                a_kSZ + 1.6 * a_tSZ, 9.5, 3.0
+            )
+
+        pipeline = Pipeline(prior, likelihood, ...)
+
+    For the most part, priors function the same as Likelihoods. However, they
+    are designed to be more lightweight, and have very few joint parameters.
+
+    You are able to combine two priors through addition, for example:
+
+    .. code-block:: python
+
+        cal_prior = Prior(
+            lambda calibration: jsc.stats.norm.logpdf(calibration, 1.0, 0.01),
+        )
+
+        tau_prior = Prior(
+            lambda tau: jsc.stats.norm.logpdf(tau, 0.06, 0.01),
+        )
+
+        sz_prior = Prior(
+            lambda a_kSZ, a_tSZ: jsc.stats.norm.logpdf(
+                a_kSZ + 1.6 * a_tSZ, 9.5, 3.0
+            )
+        )
+
+        prior = cal_prior + tau_prior + sz_prior
+
+        # These two are equivalent.
+        pipeline = Pipeline(prior, ...)
+        pipeline = Pipeline(cal_prior, tau_prior, sz_prior, ...)
+    """
+    def __init__(self, *priors):
         self.priors = []
         self.H_priors = []
         self.parameters = []
@@ -43,7 +91,9 @@ class Prior:
         return res
 
     def __add__(self, other: Prior | Callable | list[Callable]):
-        if type(other) is Prior:
+        if other is None:
+            return self
+        elif type(other) is Prior:
             for prior in other.priors:
                 self.add_prior(prior)
         elif type(other) is Callable:
