@@ -64,7 +64,7 @@ jobs:
     - name: Acquire DR6 data
       uses: actions/download-artifact@v5
       with:
-        name: dr6-cmbonly-data
+        name: dr6-data
     - name: Unpack DR6 data
       continue-on-error: true
       run: |
