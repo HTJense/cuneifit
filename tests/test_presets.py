@@ -14,7 +14,10 @@ except Exception:
 parser_filename = "jense_2023_cmb_camb_lcdm.yaml"
 
 
-def test_act_dr6_mflike_preset(dr6_dir):
+def test_act_dr6_mflike_preset(is_github_workflow, dr6_dir):
+    if is_github_workflow:
+        pytest.skip("Skipping DR6 mflike test on a github workflow.")
+
     cuneifit.config.config_add_path(dr6_dir)
     dr6 = cuneifit.MultiFrequency("act_dr6")
     cuneifit.BandpowerForegrounds("act_dr6_foregrounds", dr6)
