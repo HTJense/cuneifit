@@ -14,7 +14,10 @@ except Exception:
 parser_filename = "jense_2023_cmb_camb_lcdm.yaml"
 
 
-def test_act_dr6_mflike_preset(dr6_dir):
+def test_act_dr6_mflike_preset(is_github_workflow, dr6_dir):
+    if is_github_workflow:
+        pytest.skip("Skipping DR6 mflike test on a github workflow.")
+
     cuneifit.config.config_add_path(dr6_dir)
     dr6 = cuneifit.MultiFrequency("act_dr6")
     cuneifit.BandpowerForegrounds("act_dr6_foregrounds", dr6)
@@ -26,7 +29,10 @@ def test_act_dr6_lite_preset(dr6_dir):
 
 
 @pytest.mark.skipif(not CP_IMPORT_OK, reason="Cosmopower not installed.")
-def test_act_dr6_mflike_fiducial(emu_dir, dr6_dir):
+def test_act_dr6_mflike_fiducial(is_github_workflow, emu_dir, dr6_dir):
+    if is_github_workflow:
+        pytest.skip("Skipping DR6 mflike test on a github workflow.")
+
     cuneifit.config.config_add_path(dr6_dir)
 
     parser = cp.YAMLParser(os.path.join(emu_dir, parser_filename),
@@ -34,7 +40,7 @@ def test_act_dr6_mflike_fiducial(emu_dir, dr6_dir):
     cmb = cuneifit.Cosmopower(parser)
     dr6 = cuneifit.MultiFrequency("act_dr6")
     fg = cuneifit.BandpowerForegrounds("act_dr6_foregrounds", dr6)
-    pipeline = cuneifit.Pipeline([cmb, dr6, fg])
+    pipeline = cuneifit.Pipeline(cmb, dr6, fg)
 
     theta = jnp.array([utilities.test_dr6_parameters[p]
                        for p in pipeline.parameters])
@@ -65,7 +71,7 @@ def test_act_dr6_lite_fiducial(emu_dir, dr6_dir):
                            root_dir=emu_dir)
     cmb = cuneifit.Cosmopower(parser)
     dr6 = cuneifit.CMBLite("act_dr6_cmbonly")
-    pipeline = cuneifit.Pipeline([cmb, dr6])
+    pipeline = cuneifit.Pipeline(cmb, dr6)
 
     theta = jnp.array([utilities.test_dr6_lite_parameters[p]
                        for p in pipeline.parameters])

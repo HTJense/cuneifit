@@ -7,7 +7,23 @@ on:
     branches: [main]
 
 jobs:
+  download-data:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Download DR6 data
+      continue-on-error: true
+      run: |
+        wget https://lambda.gsfc.nasa.gov/data/act/pspipe/sacc_files/dr6_data_cmbonly.tar.gz
+    - name: Upload the data
+      uses: actions/upload-artifact@v4
+      with:
+        name: dr6-data
+        path: dr6_data_cmbonly.tar.gz
+        retention-days: 1
+
   test:
+    needs: download-data
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -43,18 +59,16 @@ jobs:
     - name: Install cuneifit
       run: |
         python -m pip install .
-    - name: Download DR6 data
+    - name: Acquire DR6 data
+      uses: actions/download-artifact@v5
+      with:
+        name: dr6-data
+    - name: Unpack DR6 data
       continue-on-error: true
       run: |
         echo "DR6_DATA_DIR=" >> "$GITHUB_ENV"
-        mkdir dr6_data dr6_data/ACTDR6CMBonly dr6_data/ACTDR6MFLike
-        cd dr6_data/ACTDR6CMBonly
-        wget https://lambda.gsfc.nasa.gov/data/act/pspipe/sacc_files/dr6_data_cmbonly.tar.gz
-        tar -zxf dr6_data_cmbonly.tar.gz
-        cd ../ACTDR6MFLike
-        wget https://lambda.gsfc.nasa.gov/data/act/pspipe/sacc_files/dr6_data.tar.gz
-        tar -zxf dr6_data.tar.gz
-        cd ../..
+        mkdir dr6_data dr6_data/ACTDR6CMBonly
+        tar -zxf dr6_data_cmbonly.tar.gz -C dr6_data/ACTDR6CMBonly
         echo "DR6_DATA_DIR=dr6_data" >> "$GITHUB_ENV"
     - name: Install cosmopower
       continue-on-error: true
@@ -69,7 +83,7 @@ jobs:
         echo "CP_DATA_DIR=jense_2024_emulators" >> "$GITHUB_ENV"
     - name: Test with pytest
       run: |
-        test_args=()
+        test_args=(--github-workflow)
         if [ -n "$CP_DATA_DIR" ]; then
           test_args+=(--emu-dir="$CP_DATA_DIR")
         fi
