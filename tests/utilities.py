@@ -67,10 +67,10 @@ class TestLikelihood2(GaussianLikelihood):
 
 
 def TestPrior():
-    return Prior([
+    return Prior(
         lambda a: jsc.stats.norm.logpdf(a, loc=test_prior_mean,
                                         scale=test_prior_scale)
-    ])
+    )
 
 
 test_cosmopower_parameters = {

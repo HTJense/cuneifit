@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsc
-from typing import Callable, Optional
+from typing import Callable
 import optax
 from .likelihood import Likelihood, GaussianLikelihood
 from .prior import Prior
@@ -12,7 +12,7 @@ class Pipeline:
     """ Posterior pipeline that automatically manages parameter and product
     dependencies.
     """
-    def __init__(self, components: list, prior: Optional[Prior] = None):
+    def __init__(self, *components):
         """ Create a pipeline object.
 
         Parameters
@@ -25,19 +25,16 @@ class Pipeline:
         """
         used_components = []
         for comp in components:
-            if isinstance(comp, Prior):
-                if prior is not None:
-                    raise ValueError("Prior present in component list and "
-                                     "passed on separately! Should be one or "
-                                     "the other.")
-                prior = comp
-            elif isinstance(comp, Likelihood) or isinstance(comp, Theory):
+            if (isinstance(comp, Prior) or isinstance(comp, Likelihood)
+               or isinstance(comp, Theory)):
                 used_components.append(comp)
             else:
                 raise ValueError(f"What am I to do with {comp}?")
 
         components = used_components
         self.components = components
+        self.priors = [comp for comp in self.components
+                       if isinstance(comp, Prior)]
         self.theories = [comp for comp in self.components
                          if isinstance(comp, Theory)]
         self.likelihoods = [comp for comp in self.components
@@ -50,7 +47,10 @@ class Pipeline:
         self.theta_default = jnp.array([jnp.nan for _ in self.parameters_full])
         self.free_to_full = jnp.array(range(len(self.parameters)), dtype=int)
 
-        self.prior = prior
+        self.prior = None
+        for prior in self.priors:
+            self.prior = prior + self.prior
+
         self.prior_indices = jnp.array([])
         self.prior_free_indices = jnp.array([])
         if self.prior is not None:
