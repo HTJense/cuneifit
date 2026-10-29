@@ -15,7 +15,7 @@ of components, e.g.:
 
     like = cuneifit.Likelihood(...)
     theory = cuneifit.Theory(...)
-    pipeline = cuneifit.Pipeline([like, theory])
+    pipeline = cuneifit.Pipeline(like, theory)
 
 If the likelihood and theory code both depend on some set of parameters, then
 the pipeline object will automatically manage these parameters internally, and
@@ -137,32 +137,6 @@ compiled and stored internally, re-using them the next function call.
 
 Prior Contributions
 ===================
-
-By default, we are not including any prior contributions to parameters. We can
-add some priors with the :code:`Prior` class: it should simply be a list of
-functions that take in parameters and return a log-posterior function. For
-example, we can add a Gaussian prior to our calibration parameters as:
-
-.. code-block:: python
-
-    from jax import scipy as jsc
-
-    prior = cuneifit.Prior([
-        lambda cal90: jsc.norm.logpdf(cal90, loc=1.0, scale=0.01),
-        lambda cal150: jsc.norm.logpdf(cal150, loc=1.0, scale=0.01)
-    ])
-
-    pipeline = cuneifit.Pipeline([prior, like, theory])
-
-These functions should have the same parameter names as any likelihoods or
-theory codes, but they can be functions of multiple parameters, for example if
-we only have a relative calibration prior:
-
-.. code-block:: python
-
-    prior = cuneifit.Prior([
-        lambda cal90, cal150: jsc.norm.logpdf(cal90 / cal150, loc=1.0, scale=0.01),
-    ])
 
 
 .. autoclass:: cuneifit.prior.Prior

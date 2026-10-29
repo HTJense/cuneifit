@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsc
-from typing import Callable, Optional
+from typing import Callable
 import optax
 from .likelihood import Likelihood, GaussianLikelihood
 from .prior import Prior
@@ -26,7 +26,7 @@ class Pipeline:
         used_components = []
         for comp in components:
             if (isinstance(comp, Prior) or isinstance(comp, Likelihood)
-                or isinstance(comp, Theory)):
+               or isinstance(comp, Theory)):
                 used_components.append(comp)
             else:
                 raise ValueError(f"What am I to do with {comp}?")

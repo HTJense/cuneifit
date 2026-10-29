@@ -51,6 +51,5 @@ def test_addition():
     i_a = p_ab.parameters.index("a")
     i_b = p_ab.parameters.index("b")
 
-    assert F_ab[i_a,i_a] == F_a[0, 0]
-    assert F_ab[i_b,i_b] == F_b[0, 0]
-
+    assert F_ab[i_a, i_a] == F_a[0, 0]
+    assert F_ab[i_b, i_b] == F_b[0, 0]
