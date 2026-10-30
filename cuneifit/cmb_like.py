@@ -3,7 +3,7 @@ import sacc
 import os
 import jax.numpy as jnp
 
-from .config import config_from_file, config_locate_data
+from .config import resolve_config, load_config, resolve_data
 from .likelihood import GaussianLikelihood
 
 
@@ -33,16 +33,20 @@ MFLIKE_DATA_TYPES = {
 
 
 class MultiFrequency(GaussianLikelihood):
-    def __init__(self, config: str | dict):
+    def __init__(self, config: str | dict | None = None, **kwargs):
         if type(config) is str:
-            self.config = config_from_file(config)
+            config = resolve_config(config)
+            self.config = load_config(config)
         elif type(config) is dict:
+            config = {**config, **kwargs}
             self.config = config
+        elif config is None:
+            self.config = kwargs
         else:
             raise TypeError("Configuration should be string (filename) or "
                             f"dictionary, but was given {type(config)}.")
 
-        data_path = config_locate_data(self.config["data_folder"])
+        data_path = resolve_data(self.config["data_folder"])
         s = sacc.Sacc.load_fits(os.path.join(data_path,
                                              self.config["input_file"]))
 
@@ -228,16 +232,20 @@ class MultiFrequency(GaussianLikelihood):
 
 
 class CMBLite(GaussianLikelihood):
-    def __init__(self, config: str | dict):
+    def __init__(self, config: str | dict | None = None, **kwargs):
         if type(config) is str:
-            self.config = config_from_file(config)
+            config = resolve_config(config)
+            self.config = load_config(config)
         elif type(config) is dict:
+            config = {**config, **kwargs}
             self.config = config
+        elif config is None:
+            self.config = kwargs
         else:
             raise TypeError("Configuration should be string (filename) or "
                             f"dictionary, but was given {type(config)}.")
 
-        data_path = config_locate_data(self.config["data_folder"])
+        data_path = resolve_data(self.config["data_folder"])
         s = sacc.Sacc.load_fits(os.path.join(data_path,
                                              self.config["input_file"]))
 
@@ -349,8 +357,8 @@ class CMBLite(GaussianLikelihood):
 
 
 class CMBNull(MultiFrequency):
-    def __init__(self, config: str | dict):
-        super().__init__(config)
+    def __init__(self, config: str | dict | None, **kwargs):
+        super().__init__(config, **kwargs)
         self.n_ig = self.config["n_ig"]
 
         self.inv_cov = jnp.linalg.inv(self.covariance)

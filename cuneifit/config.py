@@ -4,8 +4,10 @@ import yaml
 
 
 config_extensions = [".yml", ".yaml"]
-additional_paths = []
+search_data_paths = []
+search_config_paths = []
 env_data_path = os.getenv("CUNEIFIT_DATA_DIR", None)
+env_config_path = os.getenv("CUNEIFIT_CONFIG_DIR", None)
 
 
 # This is copied from the way in which cobaya does it.
@@ -38,7 +40,7 @@ def _load_defaults(loader, node):
         except StopIteration:
             raise RuntimeError(f"File {dfile} not found in {folder}.")
 
-        loaded_defaults |= config_from_file(df)
+        loaded_defaults |= load_config(df)
 
     loader.current_folder = folder
     return loaded_defaults
@@ -47,29 +49,52 @@ def _load_defaults(loader, node):
 DefaultsLoader.add_constructor("!defaults", _load_defaults)
 
 
-def config_add_path(path: str):
-    additional_paths.append(path)
+def add_data_path(path: str):
+    """ Add a path to the data search order. Whenever a data file path needs to
+    be resolved, and the file does not exist in the current working directory,
+    the the given path will be searched as well.
+    """
+    search_data_paths.append(path)
+
+
+def add_config_path(path: str):
+    """ Add a path to the config search order. Whenever a config file path
+    needs to be resolved, and the file does not exist in the current working
+     directory, the the given path will be searched as well.
+    """
+    search_config_paths.append(path)
 
 
 # Check if a configuration file exists here. Otherwise, load it from here.
-def config_resolve(filename: str) -> str:
+def resolve_config(filename: str) -> str:
     from importlib.resources import files
-    if os.path.exists(filename):
-        return filename
+    fn_options = []
 
-    preset_file = str(files("cuneifit.presets").joinpath(filename))
-    if not os.path.splitext(preset_file)[1]:
-        preset_file += ".yaml"
-    if os.path.isfile(preset_file):
-        return preset_file
+    if not os.path.splitext(filename)[1]:
+        for ext in config_extensions:
+            fn_options.append(filename + ext)
 
-    raise OSError(f"Failed to find file {filename}.")
+    path_options = fn_options.copy()
+
+    for extra_path in search_config_paths:
+        for fn in fn_options:
+            path_options.append(os.path.join(extra_path, fn))
+
+    preset_dir = files("cuneifit.presets")
+    for fn in fn_options:
+        path_options.append(str(preset_dir / fn))
+
+    for fn in path_options:
+        if os.path.exists(fn):
+            return fn
+
+    errstr = (f"Failed to find config file {filename}.\n"
+              "Search paths:\n\t" + "\n\t".join(path_options))
+    raise OSError(errstr)
 
 
 # Load a configuration file.
-def config_from_file(filename: str) -> dict:
-    filename = config_resolve(filename)
-
+def load_config(filename: str) -> dict:
     with open(filename) as fp:
         text = fp.read()
 
@@ -82,36 +107,41 @@ def config_from_file(filename: str) -> dict:
 
 # Given a filename, explore several standardized file locations for
 # the path. The order of earch
-def config_locate_data(path: str) -> str:
+def resolve_data(filename: str) -> str:
     """ Given a filename, explore several file locations for the path.
 
     The order of the search is:
       1. The current work directory;
-      2. The path given by the environment variable $CUNEIFIT_DATA_DIR;
-      3. Any path added to the search list using `config_add_path`;
+      2. Any path added to the search list using `config_add_path`;
+      3. The path given by the environment variable $CUNEIFIT_DATA_DIR;
       4. The cobaya data directory.
     """
-    if os.path.exists(path):
-        return path
+    from importlib.resources import files
 
-    if (env_data_path is not None and
-       os.path.exists(fullpath := os.path.join(env_data_path, path))):
-        return fullpath
+    path_options = [filename]
 
-    for extra_path in additional_paths:
-        if os.path.exists(
-            fullpath := os.path.join(extra_path, path)
-        ):
-            return fullpath
+    for extra_path in search_data_paths:
+        path_options.append(os.path.join(extra_path, filename))
+
+    preset_dir = files("cuneifit.data")
+    path_options.append(str(preset_dir / filename))
+
+    if env_data_path is not None:
+        path_options.append(os.path.join(env_data_path, filename))
 
     try:
         from cobaya.tools import resolve_packages_path
 
-        if os.path.exists(
-            fullpath := os.path.join(resolve_packages_path(), "data", path)
-        ):
-            return fullpath
+        path_options.append(
+            os.path.join(resolve_packages_path(),"data", path)
+        )
     except Exception:
         pass
 
-    raise OSError(f"Failed to find data path {path}.")
+    for fn in path_options:
+        if os.path.exists(fn):
+            return fn
+
+    errstr = (f"Failed to find data file {filename}.\n"
+              "Search paths:\n\t" + "\n\t".join(path_options))
+    raise OSError(errstr)
