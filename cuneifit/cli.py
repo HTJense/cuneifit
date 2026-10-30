@@ -93,11 +93,11 @@ def main(argv: list[str] | None = None) -> int:
     logger.info(pipeline.parameters)
 
     theta = pipeline.params_to_vec(run_config["start"])
-    print(theta)
+    bestfit = None
 
     if (min_args := run_config.get("minimizer", None)):
         logger.info("Optimizing parameters.")
-        min_args["max_steps"] = min_args.get("steps", 100)
+        min_args["max_steps"] = min_args.get("max_steps", 100)
         min_args["learning_rate"] = min_args.get("learning_rate", 0.1)
         chain = pipeline.minimize(theta, tqdm=tqdm, **min_args)
         theta = chain[-1]
@@ -119,6 +119,8 @@ def main(argv: list[str] | None = None) -> int:
             fp.write(f"    -log(posterior)  {-logpost:.5f}\n\n")
             for i, p in enumerate(pipeline.parameters):
                 fp.write(f"{p:>20s} {theta[i]:.5e}\n")
+
+        bestfit = theta.copy()
     else:
         F = pipeline.fisher(theta)
         cov = jnp.linalg.inv(F)
@@ -129,7 +131,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.plot:
         fig, axes = cuneifit.plots.plot_fisher_triangle(pipeline, theta, F,
                                                         **plot_args)
-        plt.savefig(os.path.join(dirname, "fisher.png"), bbox_inches="tight")
+        plt.savefig(os.path.join(dirname, "fisher.pdf"), bbox_inches="tight")
 
     if (chain_args := run_config.get("chain", None)):
         logger.info("Running chains.")
@@ -150,12 +152,12 @@ def main(argv: list[str] | None = None) -> int:
         if (warmup_steps := chain_args.get("warmup", None)) > 0:
             # Do a warmup run.
             logger.info(f"Running {warmup_steps} warm-up steps.")
-            args = chain_args.get("args", {})
+            kernel_args = chain_args.get("args", {})
 
             warmup = blackjax.window_adaptation(
                 getattr(blackjax, method), pipeline.logposterior,
                 initial_inverse_mass_matrix=M, is_mass_matrix_diagonal=False,
-                **args
+                **kernel_args
             )
 
             rng_key, warmup_key = jax.random.split(rng_key, 2)
@@ -168,9 +170,9 @@ def main(argv: list[str] | None = None) -> int:
                                                 **parameters)
         else:
             # Don't do a warmup run - the user may provide some settings.
-            args = chain_args.get("args", {})
+            kernel_args = chain_args.get("args", {})
             sampler = getattr(blackjax, method)(pipeline.logposterior, M,
-                                                **args)
+                                                **kernel_args)
             state = sampler.init(theta)
 
         if n_runners == 1:
@@ -189,10 +191,14 @@ def main(argv: list[str] | None = None) -> int:
 
             fp = open(output + ".1.txt", "w")
             fp.write("# log-posterior " + " ".join(pipeline.parameters) + "\n")
+            logdensities = []
+            positions = []
 
             for i in tqdm(range(n_samples), desc="Sampling"):
                 key = jax.random.fold_in(rng_key, i)
                 state, _ = step(key, state)
+                logdensities.append(float(state.logdensity))
+                positions.append(np.asarray(state.position))
 
                 fp.write(f"{state.logdensity:.3f}\t"
                          + "\t".join([f"{x:.8e}" for x in state.position])
@@ -200,6 +206,9 @@ def main(argv: list[str] | None = None) -> int:
                 fp.flush()
 
             fp.close()
+
+            logdensities = np.asarray([logdensities])
+            positions = np.asarray([positions])
         else:
             # Run multiple chains in parallel using JAX sharding.
             devices = jax.devices()
@@ -262,6 +271,8 @@ def main(argv: list[str] | None = None) -> int:
                 lambda _: PartitionSpec("chain"), states
             )
 
+            # The actual sharder: it maps from (starting) states to
+            # an output array of [logp, theta] per chain.
             parallel_sampling = jax.jit(
                 jax.shard_map(
                     shard_chains, mesh=mesh,
@@ -274,14 +285,16 @@ def main(argv: list[str] | None = None) -> int:
                 )
             )
 
+            # Sampling!
             with blackjax.progress_bar(label="Sampling"):
                 logdensities, positions = parallel_sampling(chain_keys, states)
                 positions.block_until_ready()
 
+            # Write everything to a file.
             logdensities = np.asarray(logdensities)
             positions = np.asarray(positions)
 
-            logger.info("Done. Writing to files.")
+            logger.info("Writing chains to files.")
 
             for i in range(n_runners):
                 np.savetxt(
@@ -290,5 +303,38 @@ def main(argv: list[str] | None = None) -> int:
                     fmt=["%.3f"] + ["%.8e"] * len(pipeline.parameters),
                     header="log-posterior " + " ".join(pipeline.parameters)
                 )
+
+        if args.plot:
+            # Create getdist triangle + 1D plots.
+            logger.info("Creating posterior plots.")
+
+            from getdist import plots, MCSamples
+
+            settings = plots.GetDistPlotSettings()
+            getdist_settings = run_config.get("getdist_settings", {})
+            for k, v in getdist_settings.items():
+                if hasattr(settings, k):
+                    setattr(settings, k, v)
+
+            labels = [plot_args.get("labels", {}).get(p, p)
+                      for p in pipeline.parameters]
+            chain = MCSamples(samples=positions, loglikes=-logdensities,
+                              names=pipeline.parameters, labels=labels)
+            markers = {}
+            if bestfit is not None:
+                markers = {
+                    p: bestfit[i] for i, p in enumerate(pipeline.parameters)
+                }
+
+            if (burn_in := getdist_settings.get("burn_in", 0.0)) > 0.0:
+                chain.removeBurn(burn_in)
+
+            g = plots.get_subplot_plotter(settings=settings)
+            g.plots_1d([chain])
+            g.export(os.path.join(dirname, "posteriors.pdf"))
+
+            g = plots.get_subplot_plotter(settings=settings)
+            g.triangle_plot([chain], filled=True)
+            g.export(os.path.join(dirname, "triangle.pdf"))
 
     logger.info("Done.")
