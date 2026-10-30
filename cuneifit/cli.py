@@ -97,7 +97,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if (min_args := run_config.get("minimizer", None)):
         logger.info("Optimizing parameters.")
-        min_args["max_steps"] = min_args.get("max_steps", 100)
+        min_args["max_steps"] = min_args.get("steps", 100)
         min_args["learning_rate"] = min_args.get("learning_rate", 0.1)
         chain = pipeline.minimize(theta, tqdm=tqdm, **min_args)
         theta = chain[-1]
@@ -136,8 +136,8 @@ def main(argv: list[str] | None = None) -> int:
 
         import blackjax
         import secrets
-        n_runners = chain_args.get("n_runners", 1)
-        n_samples = chain_args["n_samples"]
+        n_runners = chain_args.get("runners", 1)
+        n_samples = chain_args["samples"]
         method = chain_args.get("method", "hmc")
 
         if not hasattr(blackjax, method):
