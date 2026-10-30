@@ -3,7 +3,7 @@ import jax
 import jax.numpy as jnp
 from scipy import constants
 
-from .config import config_from_file
+from .config import resolve_config, load_config
 from .theory import Theory
 
 from . import fg_model as fgm
@@ -20,11 +20,15 @@ def _cmb2bb(nu, T=T_CMB):
 
 
 class BandpowerForegrounds(Theory):
-    def __init__(self, config: str | dict, likelihood):
+    def __init__(self, likelihood, config: str | dict | None, **kwargs):
         if type(config) is str:
-            self.config = config_from_file(config)
+            config = resolve_config(config)
+            self.config = load_config(config)
         elif type(config) is dict:
+            config = {**config, **kwargs}
             self.config = config
+        elif config is None:
+            self.config = kwargs
         else:
             raise TypeError("Configuration should be string (filename) or "
                             f"dictionary, but was given {type(config)}.")

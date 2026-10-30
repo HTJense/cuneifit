@@ -18,13 +18,13 @@ def test_act_dr6_mflike_preset(is_github_workflow, dr6_dir):
     if is_github_workflow:
         pytest.skip("Skipping DR6 mflike test on a github workflow.")
 
-    cuneifit.config.config_add_path(dr6_dir)
+    cuneifit.config.add_data_path(dr6_dir)
     dr6 = cuneifit.MultiFrequency("act_dr6")
-    cuneifit.BandpowerForegrounds("act_dr6_foregrounds", dr6)
+    cuneifit.BandpowerForegrounds(dr6, "act_dr6_foregrounds")
 
 
 def test_act_dr6_lite_preset(dr6_dir):
-    cuneifit.config.config_add_path(dr6_dir)
+    cuneifit.config.add_data_path(dr6_dir)
     cuneifit.CMBLite("act_dr6_cmbonly")
 
 
@@ -33,13 +33,12 @@ def test_act_dr6_mflike_fiducial(is_github_workflow, emu_dir, dr6_dir):
     if is_github_workflow:
         pytest.skip("Skipping DR6 mflike test on a github workflow.")
 
-    cuneifit.config.config_add_path(dr6_dir)
+    cuneifit.config.add_data_path(dr6_dir)
 
-    parser = cp.YAMLParser(os.path.join(emu_dir, parser_filename),
-                           root_dir=emu_dir)
-    cmb = cuneifit.Cosmopower(parser)
+    cmb = cuneifit.Cosmopower(yaml_file=os.path.join(emu_dir, parser_filename),
+                              root_dir=emu_dir)
     dr6 = cuneifit.MultiFrequency("act_dr6")
-    fg = cuneifit.BandpowerForegrounds("act_dr6_foregrounds", dr6)
+    fg = cuneifit.BandpowerForegrounds(dr6, "act_dr6_foregrounds")
     pipeline = cuneifit.Pipeline(cmb, dr6, fg)
 
     theta = jnp.array([utilities.test_dr6_parameters[p]
@@ -65,11 +64,10 @@ def test_act_dr6_mflike_fiducial(is_github_workflow, emu_dir, dr6_dir):
 def test_act_dr6_lite_fiducial(emu_dir, dr6_dir):
     import jax.numpy as jnp
 
-    cuneifit.config.config_add_path(dr6_dir)
+    cuneifit.config.add_data_path(dr6_dir)
 
-    parser = cp.YAMLParser(os.path.join(emu_dir, parser_filename),
-                           root_dir=emu_dir)
-    cmb = cuneifit.Cosmopower(parser)
+    cmb = cuneifit.Cosmopower(yaml_file=os.path.join(emu_dir, parser_filename),
+                              root_dir=emu_dir)
     dr6 = cuneifit.CMBLite("act_dr6_cmbonly")
     pipeline = cuneifit.Pipeline(cmb, dr6)
 
