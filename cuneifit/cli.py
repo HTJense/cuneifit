@@ -2,12 +2,12 @@ import argparse
 import logging
 import os
 
-import jax
+import jax  # noqa: F401
 import jax.numpy as jnp
 import jax.scipy as jsc
 import numpy as np
 
-import cuneifit
+import cuneifit  # noqa: F401
 from . import config
 
 logger = logging.getLogger(__name__)
@@ -33,8 +33,8 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         from tqdm import tqdm
-    except:
-        tqdm = lambda x, *args: x
+    except ImportError:
+        tqdm = lambda x, *args: x  # noqa: E731
 
     # Setup the logger
     log_level = logging.INFO
@@ -65,12 +65,18 @@ def main(argv: list[str] | None = None) -> int:
         if type(params) is str:
             params = [params]
         dist = prior.get("dist", "norm")
+
         if hasattr(jsc.stats, dist):
-            settings = {k: v for k, v in prior.items() if k not in ["dist", "par"]}
-            logpi = lambda x, dist=dist, settings=settings: (
+            settings = {
+                k: v for k, v in prior.items() if k not in ["dist", "par"]
+            }
+
+            logpi = lambda x, dist=dist, settings=settings: (  # noqa: E731
                 getattr(jsc.stats, dist).logpdf(x, **settings)
             )
             priors.append((params, logpi))
+        else:
+            raise RuntimeError(f"Unknown probability function {dist}.")
 
     if len(priors) > 0:
         prior = cuneifit.Prior()
@@ -105,7 +111,8 @@ def main(argv: list[str] | None = None) -> int:
     theta = pipeline.params_to_vec(params_fit)
 
     logger.info("Optimizing parameters.")
-    chain = pipeline.minimize(theta, max_steps=100, learning_rate=1e-2, tqdm=tqdm)
+    chain = pipeline.minimize(theta, max_steps=100, learning_rate=1e-2,
+                              tqdm=tqdm)
     theta = chain[-1]
 
     logprior = pipeline.logprior(theta)
@@ -126,9 +133,10 @@ def main(argv: list[str] | None = None) -> int:
         for i, p in enumerate(pipeline.parameters):
             fp.write(f"{p:>20s} {theta[i]:.5e}\n")
 
-    np.savetxt(output + ".fisher_cov", cov, header=" ".join(pipeline.parameters), fmt="%.8e")
+    np.savetxt(output + ".fisher_cov", cov,
+               header=" ".join(pipeline.parameters), fmt="%.8e")
 
     if args.plot:
-        fig, axes = cuneifit.plots.plot_fisher_triangle(pipeline, theta, F, labels=params_labels)
+        fig, axes = cuneifit.plots.plot_fisher_triangle(pipeline, theta, F,
+                                                        labels=params_labels)
         plt.savefig(os.path.join(dirname, "fisher.png"), bbox_inches="tight")
-

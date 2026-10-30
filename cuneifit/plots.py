@@ -110,7 +110,7 @@ def plot_fisher_triangle(pipeline, theta, F=None, parameters=None, fig=None,
 
     for i, p in enumerate(parameters):
         for j, q in enumerate(parameters):
-            ax = axes[j,i]
+            ax = axes[j, i]
             if i > j:
                 fig.delaxes(ax)
                 continue
@@ -125,16 +125,19 @@ def plot_fisher_triangle(pipeline, theta, F=None, parameters=None, fig=None,
                 ax.axvline(mu, **marker_args)
 
                 for k in range(i):
-                    axes[j,k].set_ylim(xmin, xmax)
-                for k in range(i+1,len(parameters)):
-                    axes[k,i].set_xlim(xmin, xmax)
+                    axes[j, k].set_ylim(xmin, xmax)
+                for k in range(i+1, len(parameters)):
+                    axes[k, i].set_xlim(xmin, xmax)
 
                 ax.set_yticks([])
             else:
                 mu = np.array([theta[i], theta[j]])
-                subcov = np.array([[cov[i,i], cov[i,j]], [cov[j,i], cov[j,j]]])
-                plot_ellipse(ax, mu, subcov, nstd=1., alpha=0.5, **contour_args)
-                plot_ellipse(ax, mu, subcov, nstd=2., alpha=0.3, **contour_args)
+                subcov = np.array([[cov[i, i], cov[i, j]],
+                                   [cov[j, i], cov[j, j]]])
+                plot_ellipse(ax, mu, subcov, nstd=1., alpha=0.5,
+                             **contour_args)
+                plot_ellipse(ax, mu, subcov, nstd=2., alpha=0.3,
+                             **contour_args)
 
                 ax.axvline(mu[0], **marker_args)
                 ax.axhline(mu[1], **marker_args)

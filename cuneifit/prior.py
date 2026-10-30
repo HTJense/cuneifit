@@ -62,7 +62,7 @@ class Prior:
             self.add_prior(logpi)
 
     def add_prior(self, logpi: Callable[[jnp.ndarray], float], /,
-                  func_pars: list | None=None):
+                  func_pars: list | None = None):
         self.priors.append(logpi)
 
         if func_pars is None:
