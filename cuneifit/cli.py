@@ -44,6 +44,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # Load the configuration file.
     run_config = config.load_config(args.run_file)
+    plot_args = run_config.get("plot_args", {})
 
     # Prepare output directory.
     output = run_config["output"]
@@ -87,56 +88,49 @@ def main(argv: list[str] | None = None) -> int:
     pipeline = cuneifit.Pipeline(*components)
 
     # Check out the starting parameters.
-    params_labels = {p: p for p in pipeline.parameters}
-    params_fit = {}
-    params_fix = {}
-
-    for par, value in run_config["params"].items():
-        if type(value) is float:
-            params_fit[par] = value
-        elif type(value) is dict:
-            for k, v in value.items():
-                if k == "fix":
-                    params_fix[par] = v
-                elif k == "start":
-                    params_fit[par] = v
-                elif k == "label":
-                    params_labels[par] = f"${v}$"
-
-    if len(params_fix) > 0:
+    if len(params_fix := run_config.get("restrict", {})) > 0:
         pipeline.restrict(params_fix)
 
     logger.info(pipeline.parameters)
 
-    theta = pipeline.params_to_vec(params_fit)
+    theta = pipeline.params_to_vec(run_config["start"])
+    print(theta)
 
-    logger.info("Optimizing parameters.")
-    chain = pipeline.minimize(theta, max_steps=100, learning_rate=1e-2,
-                              tqdm=tqdm)
-    theta = chain[-1]
+    if (min_args := run_config.get("minimizer", None)):
+        logger.info("Optimizing parameters.")
+        min_args["max_steps"] = min_args.get("max_steps", 100)
+        min_args["learning_rate"] = min_args.get("learning_rate", 0.1)
+        chain = pipeline.minimize(theta, tqdm=tqdm, **min_args)
+        theta = chain[-1]
 
-    logprior = pipeline.logprior(theta)
-    loglike = pipeline.loglike(theta)
-    logpost = pipeline.logposterior(theta)
+        logprior = pipeline.logprior(theta)
+        loglike = pipeline.loglike(theta)
+        logpost = pipeline.logposterior(theta)
 
-    F = pipeline.fisher(theta)
-    cov = jnp.linalg.inv(F)
-    err = jnp.sqrt(jnp.diag(cov))
+        F = pipeline.fisher(theta)
+        cov = jnp.linalg.inv(F)
+        err = jnp.sqrt(jnp.diag(cov))
 
-    for i, p in enumerate(pipeline.parameters):
-        logger.info(f"{p} = {theta[i]:.3e} +/- {err[i]:.3e}")
-
-    with open(output + ".minimum", "w") as fp:
-        fp.write(f"    -log(prior)      {-logprior:.5f}\n")
-        fp.write(f"    -log(likelihood) {-loglike:.5f}\n")
-        fp.write(f"    -log(posterior)  {-logpost:.5f}\n\n")
         for i, p in enumerate(pipeline.parameters):
-            fp.write(f"{p:>20s} {theta[i]:.5e}\n")
+            logger.info(f"{p} = {theta[i]:.3e} +/- {err[i]:.3e}")
+
+        with open(output + ".minimum", "w") as fp:
+            fp.write(f"    -log(prior)      {-logprior:.5f}\n")
+            fp.write(f"    -log(likelihood) {-loglike:.5f}\n")
+            fp.write(f"    -log(posterior)  {-logpost:.5f}\n\n")
+            for i, p in enumerate(pipeline.parameters):
+                fp.write(f"{p:>20s} {theta[i]:.5e}\n")
+    else:
+        F = pipeline.fisher(theta)
+        cov = jnp.linalg.inv(F)
 
     np.savetxt(output + ".fisher_cov", cov,
                header=" ".join(pipeline.parameters), fmt="%.8e")
 
     if args.plot:
         fig, axes = cuneifit.plots.plot_fisher_triangle(pipeline, theta, F,
-                                                        labels=params_labels)
+                                                        **plot_args)
         plt.savefig(os.path.join(dirname, "fisher.png"), bbox_inches="tight")
+
+    if (chain_args := run_config.get("chain", None)):
+        logger.info("Running chains.")

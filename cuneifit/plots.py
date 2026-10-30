@@ -108,6 +108,8 @@ def plot_fisher_triangle(pipeline, theta, F=None, parameters=None, fig=None,
         axes = fig.subplots(len(parameters), len(parameters),
                             gridspec_kw={"hspace": 0.0, "wspace": 0.0})
 
+    labels = {k: f"${labels[k]}$" for k in labels}
+
     for i, p in enumerate(parameters):
         for j, q in enumerate(parameters):
             ax = axes[j, i]
