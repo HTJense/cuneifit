@@ -105,18 +105,28 @@ def main(argv: list[str] | None = None) -> int:
     theta = pipeline.params_to_vec(params_fit)
 
     logger.info("Optimizing parameters.")
-    #chain = pipeline.minimize(theta, max_steps=100, learning_rate=1e-2, tqdm=tqdm)
-    #theta = chain[-1]
+    chain = pipeline.minimize(theta, max_steps=100, learning_rate=1e-2, tqdm=tqdm)
+    theta = chain[-1]
+
+    logprior = pipeline.logprior(theta)
+    loglike = pipeline.loglike(theta)
+    logpost = pipeline.logposterior(theta)
 
     F = pipeline.fisher(theta)
-    print(F)
     cov = jnp.linalg.inv(F)
     err = jnp.sqrt(jnp.diag(cov))
 
     for i, p in enumerate(pipeline.parameters):
         logger.info(f"{p} = {theta[i]:.3e} +/- {err[i]:.3e}")
 
-    np.savetxt(output + ".fisher_inv", cov, header=" ".join(pipeline.parameters), fmt="%.5e")
+    with open(output + ".minimum", "w") as fp:
+        fp.write(f"    -log(prior)      {-logprior:.5f}\n")
+        fp.write(f"    -log(likelihood) {-loglike:.5f}\n")
+        fp.write(f"    -log(posterior)  {-logpost:.5f}\n\n")
+        for i, p in enumerate(pipeline.parameters):
+            fp.write(f"{p:>20s} {theta[i]:.5e}\n")
+
+    np.savetxt(output + ".fisher_cov", cov, header=" ".join(pipeline.parameters), fmt="%.8e")
 
     if args.plot:
         fig, axes = cuneifit.plots.plot_fisher_triangle(pipeline, theta, F, labels=params_labels)
