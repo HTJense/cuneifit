@@ -2,13 +2,21 @@ import argparse
 import logging
 import os
 
-import jax  # noqa: F401
+import jax
 import jax.numpy as jnp
 import jax.scipy as jsc
 import numpy as np
 
-import cuneifit  # noqa: F401
+import matplotlib.pyplot as plt
+import cuneifit
+import cuneifit.plots
 from . import config
+
+try:
+    from tqdm import tqdm
+except ImportError:
+    tqdm = lambda x, *args: x  # noqa: E731
+
 
 logger = logging.getLogger(__name__)
 
@@ -26,15 +34,6 @@ def main(argv: list[str] | None = None) -> int:
                         help="Make plots as you go.")
 
     args = parser.parse_args(argv)
-
-    if args.plot:
-        import matplotlib.pyplot as plt
-        import cuneifit.plots
-
-    try:
-        from tqdm import tqdm
-    except ImportError:
-        tqdm = lambda x, *args: x  # noqa: E731
 
     # Setup the logger
     log_level = logging.INFO
@@ -134,3 +133,150 @@ def main(argv: list[str] | None = None) -> int:
 
     if (chain_args := run_config.get("chain", None)):
         logger.info("Running chains.")
+
+        import blackjax
+        import secrets
+        n_runners = chain_args.get("n_runners", 1)
+        n_samples = chain_args["n_samples"]
+        method = chain_args.get("method", "hmc")
+
+        if not hasattr(blackjax, method):
+            raise RuntimeError(f"Sampling method {method} not found in blackjax.")
+
+        M = jnp.linalg.inv(F)
+        rng_key = jax.random.key(secrets.randbits(32))
+
+        if (warmup_steps := chain_args.get("warmup", None)) > 0:
+            logger.info(f"Running {warmup_steps} warm-up steps.")
+            warmup = blackjax.window_adaptation(
+                blackjax.nuts, pipeline.logposterior,
+                initial_inverse_mass_matrix=M, is_mass_matrix_diagonal=False
+            )
+            rng_key, warmup_key = jax.random.split(rng_key, 2)
+            with blackjax.progress_bar(label="Warm-up"):
+                (state, parameters), _ = warmup.run(warmup_key, theta, num_steps=warmup_steps)
+
+            M = jnp.asarray(parameters["inverse_mass_matrix"])
+            sampler = getattr(blackjax, method)(pipeline.logposterior, **parameters)
+        else:
+            step_size = chain_args.get("step_size", 0.1)
+            sampler = getattr(blackjax, method)(pipeline.logposterior, step_size, M)
+            state = sampler.init(theta)
+
+        if n_runners == 1:
+            # Run only a single chain.
+            logger.info(f"Starting single {method} sampler.")
+
+            if (scale := chain_args.get("start_spread", 0.0)) > 0.0:
+                logger.info(f"Giving sampler {scale} sigma random offset.")
+                L = jnp.linalg.cholesky(M)
+                init_key, rng_key = jax.random.split(rng_key, 2)
+                gn = jax.random.normal(init_key, shape=(state.position.size,))
+                theta_start = state.position + scale * (L @ gn)
+                state = sampler.init(theta_start)
+
+            step = jax.jit(sampler.step)
+
+            fp = open(output + ".1.txt", "w")
+            fp.write("# log-posterior " + " ".join(pipeline.parameters) + "\n")
+
+            for i in tqdm(range(n_samples), desc="Sampling"):
+                key = jax.random.fold_in(rng_key, i)
+                state, _ = step(key, state)
+
+                fp.write(f"{state.logdensity:.3f}\t"
+                         + "\t".join([f"{x:.8e}" for x in state.position]) + "\n")
+                fp.flush()
+
+            fp.close()
+        else:
+            # Run multiple chains in parallel using JAX sharding.
+            devices = jax.devices()
+            n_devices = len(devices)
+            if n_runners % n_devices != 0:
+                raise ValueError(
+                    f"The number of chain runners = {n_runners} must be "
+                    "divisible by the number of available devices = "
+                    f"{n_devices}."
+                )
+
+            logger.info(f"Starting {n_runners} {method} samplers across "
+                        f"{n_devices} devices.")
+
+            # Create starting states.
+            if (scale := chain_args.get("start_spread", 0.0)) > 0.0:
+                logger.info(f"Giving samplers {scale} sigma random offset.")
+                L = jnp.linalg.cholesky(M)
+                init_key, rng_key = jax.random.split(rng_key, 2)
+                gn = jax.random.normal(init_key,
+                                       shape=(n_runners, state.position.size))
+                theta_start = state.position + scale * (gn @ L.T)
+                states = [
+                    sampler.init(theta_start[i]) for i in range(n_runners)
+                ]
+            else:
+                states = [
+                    sampler.init(state.position) for _ in range(n_runners)
+                ]
+
+            states = jax.tree.map(lambda *xs: jnp.stack(xs), *states)
+            chain_keys = jax.random.split(rng_key, n_runners)
+
+            # Initialize sharding setup.
+            from jax.sharding import NamedSharding, PartitionSpec
+            mesh = jax.make_mesh((n_devices,), ("chain",))
+            chain_sharding = jax.NamedSharding(mesh, PartitionSpec("chain"))
+            chain_keys = jax.device_put(chain_keys, chain_sharding)
+            states = jax.tree.map(lambda x: jax.device_put(x, chain_sharding), states)
+
+            # The running function.
+            def run_loop(key, kernel, state, num_samples):
+                @jax.jit
+                def step(state, key):
+                    state, _ = kernel(key, state)
+                    return state, (state.logdensity, state.position)
+
+                sample_keys = jax.random.split(key, num_samples)
+                _, states = jax.lax.scan(step, state, sample_keys)
+                return states
+
+            def shard_chains(keys, local_states):
+                return jax.vmap(
+                    lambda k, s: run_loop(k, sampler.step, s, n_samples),
+                    in_axes=(0, 0),
+                )(keys, local_states)
+
+            state_spec = jax.tree.map(
+                lambda _: PartitionSpec("chain"), states
+            )
+
+            parallel_sampling = jax.jit(
+                jax.shard_map(
+                    shard_chains, mesh=mesh,
+                    in_specs=(PartitionSpec("chain"), state_spec),
+                    out_specs=(
+                        PartitionSpec("chain", None),
+                        PartitionSpec("chain", None, None),
+                    ),
+                    check_vma=False,
+                )
+            )
+
+            with blackjax.progress_bar(label="Sampling"):
+                logdensities, positions = parallel_sampling(chain_keys, states)
+                positions.block_until_ready()
+
+            logdensities = np.asarray(logdensities)
+            positions = np.asarray(positions)
+
+            logger.info("Done. Writing to files.")
+
+            for i in range(n_runners):
+                np.savetxt(
+                    output + f".{i+1}.txt",
+                    np.c_[logdensities[i], positions[i]],
+                    fmt=["%.3f"] + ["%.8e"] * len(pipeline.parameters),
+                    header="log-posterior " + " ".join(pipeline.parameters)
+                )
+
+    logger.info("Done.")
