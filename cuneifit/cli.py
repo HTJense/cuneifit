@@ -1,4 +1,5 @@
 import argparse
+import os
 from . import config
 
 
@@ -12,4 +13,5 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
-    run_config = config.
+    run_config = config.load_config(args.run_file)
+    print(run_config)

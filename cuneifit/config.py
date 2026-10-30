@@ -133,7 +133,7 @@ def resolve_data(filename: str) -> str:
         from cobaya.tools import resolve_packages_path
 
         path_options.append(
-            os.path.join(resolve_packages_path(),"data", path)
+            os.path.join(resolve_packages_path(), "data", filename)
         )
     except Exception:
         pass
