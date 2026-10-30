@@ -346,7 +346,7 @@ class Pipeline:
         chain = [theta_start]
         theta = theta_start.copy()
 
-        for _ in tqdm(range(max_steps)):
+        for _ in tqdm(range(max_steps), desc="Optimizing"):
             v, g = vgrad(theta)
             updates, state = optimizer.update(g, state, theta)
             theta = optax.apply_updates(theta, updates)

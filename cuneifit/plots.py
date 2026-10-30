@@ -77,11 +77,81 @@ def plot_ellipse(ax, mean, cov, nstd=1., **kwargs):
     return ellipse
 
 
-def plot_fisher_triangle(pipeline, theta, parameters=None, line_args=None,
-                         contour_args=None):
+def plot_fisher_triangle(pipeline, theta, F=None, parameters=None, fig=None,
+                         axes=None, line_args=None, contour_args=None,
+                         marker_args=None, labels=None):
     """Make a full triangle plot for a pipeline fisher forecast.
     """
-    pass
+    if F is None:
+        F = pipeline.fisher(theta)
+    if line_args is None:
+        line_args = {"lw": 1.2}
+    if contour_args is None:
+        contour_args = {"lw": 1.2}
+    if marker_args is None:
+        marker_args = {"lw": 0.8, "ls": "--", "color": "grey"}
+    if labels is None:
+        labels = {}
+
+    cov = jnp.linalg.inv(F)
+    err = jnp.sqrt(jnp.diag(cov))
+
+    import matplotlib.pyplot as plt
+
+    if parameters is None:
+        parameters = pipeline.parameters
+
+    if fig is None:
+        fig = plt.figure(figsize=(2.5+1.2*len(parameters),
+                                  2.0+1.2*len(parameters)))
+    if axes is None:
+        axes = fig.subplots(len(parameters), len(parameters),
+                            gridspec_kw={"hspace": 0.0, "wspace": 0.0})
+
+    for i, p in enumerate(parameters):
+        for j, q in enumerate(parameters):
+            ax = axes[j,i]
+            if i > j:
+                fig.delaxes(ax)
+                continue
+            elif i == j:
+                mu = theta[i]
+                sig = err[i]
+                xmin, xmax = mu - 3.5 * sig, mu + 3.5 * sig
+                x = np.linspace(xmin, xmax, 1000)
+                y = np.exp(-np.power((x - mu) / sig, 2.) / 2.)
+                ax.plot(x, y, **line_args)
+                ax.set_ylim(0.0, None)
+                ax.axvline(mu, **marker_args)
+
+                for k in range(i):
+                    axes[j,k].set_ylim(xmin, xmax)
+                for k in range(i+1,len(parameters)):
+                    axes[k,i].set_xlim(xmin, xmax)
+
+                ax.set_yticks([])
+            else:
+                mu = np.array([theta[i], theta[j]])
+                subcov = np.array([[cov[i,i], cov[i,j]], [cov[j,i], cov[j,j]]])
+                plot_ellipse(ax, mu, subcov, nstd=1., alpha=0.5, **contour_args)
+                plot_ellipse(ax, mu, subcov, nstd=2., alpha=0.3, **contour_args)
+
+                ax.axvline(mu[0], **marker_args)
+                ax.axhline(mu[1], **marker_args)
+
+            if i == 0:
+                ax.tick_params(axis='y', which='major', labelsize=8)
+                ax.set_ylabel(labels.get(q, q), fontsize=12)
+            else:
+                ax.set_yticks([])
+
+            if j == len(parameters)-1:
+                ax.tick_params(axis='x', which='major', labelsize=8)
+                ax.set_xlabel(labels.get(p, p), fontsize=12)
+            else:
+                ax.set_xticks([])
+
+    return fig, axes
 
 
 def getdist_triangle(plotter, pipeline, theta, parameters=None, line_args=None,

@@ -61,11 +61,14 @@ class Prior:
         for logpi in priors:
             self.add_prior(logpi)
 
-    def add_prior(self, logpi: Callable[[jnp.ndarray], float]):
+    def add_prior(self, logpi: Callable[[jnp.ndarray], float], /,
+                  func_pars: list | None=None):
         self.priors.append(logpi)
 
-        co = logpi.__code__
-        func_pars = co.co_varnames[:co.co_argcount]
+        if func_pars is None:
+            co = logpi.__code__
+            func_pars = co.co_varnames[:co.co_argcount]
+
         func_idx = []
         for i, p in enumerate(func_pars):
             if p not in self.parameters:

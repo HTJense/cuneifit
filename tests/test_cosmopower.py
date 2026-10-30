@@ -28,11 +28,13 @@ def test_cosmopower_emulators(emu_dir):
     """
     import cuneifit
 
-    parser = cp.YAMLParser(os.path.join(emu_dir, parser_filename),
-                           root_dir=emu_dir)
-    cuneifit.Cosmopower(parser)
-    cuneifit.Cosmopower(parser, desired=["tt"])
-    cuneifit.Cosmopower(parser, desired=["tt", "te", "ee", "bb", "pp"])
+    cuneifit.Cosmopower(yaml_file=os.path.join(emu_dir, parser_filename),
+                        root_dir=emu_dir)
+    cuneifit.Cosmopower(yaml_file=os.path.join(emu_dir, parser_filename),
+                        root_dir=emu_dir, desired=["tt"])
+    cuneifit.Cosmopower(yaml_file=os.path.join(emu_dir, parser_filename),
+                        root_dir=emu_dir, desired=["tt", "te", "ee",
+                                                   "bb", "pp"])
 
 
 def test_cosmopower_evaluate(emu_dir):
@@ -42,9 +44,9 @@ def test_cosmopower_evaluate(emu_dir):
     import utilities
     import jax.numpy as jnp
 
-    parser = cp.YAMLParser(os.path.join(emu_dir, parser_filename),
-                           root_dir=emu_dir)
-    cosmopower = cuneifit.Cosmopower(parser, desired=["tt"])
+    cosmopower = cuneifit.Cosmopower(yaml_file=os.path.join(emu_dir,
+                                                            parser_filename),
+                                     root_dir=emu_dir, desired=["tt"])
 
     theta = jnp.array([utilities.test_cosmopower_parameters[p]
                        for p in cosmopower.parameters])
