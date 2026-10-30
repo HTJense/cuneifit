@@ -141,7 +141,8 @@ def main(argv: list[str] | None = None) -> int:
         method = chain_args.get("method", "hmc")
 
         if not hasattr(blackjax, method):
-            raise RuntimeError(f"Sampling method {method} not found in blackjax.")
+            raise RuntimeError(f"Sampling method {method} not found in"
+                               "blackjax.")
 
         M = jnp.linalg.inv(F)
         rng_key = jax.random.key(secrets.randbits(32))
@@ -159,14 +160,17 @@ def main(argv: list[str] | None = None) -> int:
 
             rng_key, warmup_key = jax.random.split(rng_key, 2)
             with blackjax.progress_bar(label="Warm-up"):
-                (state, parameters), _ = warmup.run(warmup_key, theta, num_steps=warmup_steps)
+                (state, parameters), _ = warmup.run(warmup_key, theta,
+                                                    num_steps=warmup_steps)
 
             M = jnp.asarray(parameters["inverse_mass_matrix"])
-            sampler = getattr(blackjax, method)(pipeline.logposterior, **parameters)
+            sampler = getattr(blackjax, method)(pipeline.logposterior,
+                                                **parameters)
         else:
             # Don't do a warmup run - the user may provide some settings.
             args = chain_args.get("args", {})
-            sampler = getattr(blackjax, method)(pipeline.logposterior, M, **args)
+            sampler = getattr(blackjax, method)(pipeline.logposterior, M,
+                                                **args)
             state = sampler.init(theta)
 
         if n_runners == 1:
@@ -191,7 +195,8 @@ def main(argv: list[str] | None = None) -> int:
                 state, _ = step(key, state)
 
                 fp.write(f"{state.logdensity:.3f}\t"
-                         + "\t".join([f"{x:.8e}" for x in state.position]) + "\n")
+                         + "\t".join([f"{x:.8e}" for x in state.position])
+                         + "\n")
                 fp.flush()
 
             fp.close()
@@ -231,9 +236,10 @@ def main(argv: list[str] | None = None) -> int:
             # Initialize sharding setup.
             from jax.sharding import NamedSharding, PartitionSpec
             mesh = jax.make_mesh((n_devices,), ("chain",))
-            chain_sharding = jax.NamedSharding(mesh, PartitionSpec("chain"))
+            chain_sharding = NamedSharding(mesh, PartitionSpec("chain"))
             chain_keys = jax.device_put(chain_keys, chain_sharding)
-            states = jax.tree.map(lambda x: jax.device_put(x, chain_sharding), states)
+            states = jax.tree.map(lambda x: jax.device_put(x, chain_sharding),
+                                  states)
 
             # The running function.
             def run_loop(key, kernel, state, num_samples):
