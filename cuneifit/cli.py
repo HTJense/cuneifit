@@ -147,11 +147,16 @@ def main(argv: list[str] | None = None) -> int:
         rng_key = jax.random.key(secrets.randbits(32))
 
         if (warmup_steps := chain_args.get("warmup", None)) > 0:
+            # Do a warmup run.
             logger.info(f"Running {warmup_steps} warm-up steps.")
+            args = chain_args.get("args", {})
+
             warmup = blackjax.window_adaptation(
-                blackjax.nuts, pipeline.logposterior,
-                initial_inverse_mass_matrix=M, is_mass_matrix_diagonal=False
+                getattr(blackjax, method), pipeline.logposterior,
+                initial_inverse_mass_matrix=M, is_mass_matrix_diagonal=False,
+                **args
             )
+
             rng_key, warmup_key = jax.random.split(rng_key, 2)
             with blackjax.progress_bar(label="Warm-up"):
                 (state, parameters), _ = warmup.run(warmup_key, theta, num_steps=warmup_steps)
@@ -159,8 +164,9 @@ def main(argv: list[str] | None = None) -> int:
             M = jnp.asarray(parameters["inverse_mass_matrix"])
             sampler = getattr(blackjax, method)(pipeline.logposterior, **parameters)
         else:
-            step_size = chain_args.get("step_size", 0.1)
-            sampler = getattr(blackjax, method)(pipeline.logposterior, step_size, M)
+            # Don't do a warmup run - the user may provide some settings.
+            args = chain_args.get("args", {})
+            sampler = getattr(blackjax, method)(pipeline.logposterior, M, **args)
             state = sampler.init(theta)
 
         if n_runners == 1:
