@@ -32,3 +32,4 @@ Table of Contents
    :maxdepth: 2
 
    cobaya
+   plots
