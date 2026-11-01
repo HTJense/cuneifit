@@ -1,11 +1,16 @@
 import jax
+from jax.sharding import NamedSharding, PartitionSpec
 import jax.numpy as jnp
 import jax.scipy as jsc
+import logging
 from typing import Callable
-import optax
+
 from .likelihood import Likelihood, GaussianLikelihood
 from .prior import Prior
 from .theory import Theory
+
+
+logger = logging.getLogger(__name__)
 
 
 class Pipeline:
@@ -335,6 +340,8 @@ class Pipeline:
         tqdm : Callable
             If provided, use this function as the tqdm style progress bar.
         """
+        import optax
+
         # Find the best-fitting log-posterior.
         optimizer = optax.adam(**kwargs)
         state = optimizer.init(theta_start)
@@ -364,3 +371,156 @@ class Pipeline:
             chain.append(theta)
 
         return chain
+
+    def sample(self, theta_start: jnp.ndarray, num_steps: int,
+               num_samplers: int = 1, method: str = "nuts", rng_key=None,
+               kernel_args=None, warmup_steps: int = 0,
+               start_spread: float = 0.0,
+               tqdm: Callable = lambda x: x, **kwargs
+               ) -> (list, list):
+        """Sample a chain using a BlackJAX sampler (e.g. NUTS or HMC).
+        """
+        import blackjax
+
+        if rng_key is None:
+            import secrets
+            rng_key = jax.random.key(secrets.randbits(32))
+        if kernel_args is None:
+            kernel_args = {}
+
+        F = self.fisher(theta_start)
+        M = jnp.linalg.inv(F)
+
+        logdensities = []
+        positions = []
+
+        if warmup_steps > 0:
+            # Do a warmup run.
+            logger.info(f"Running {warmup_steps} warm-up steps.")
+
+            warmup = blackjax.window_adaptation(
+                getattr(blackjax, method), self.logposterior,
+                initial_inverse_mass_matrix=M, is_mass_matrix_diagonal=False,
+                **kernel_args
+            )
+
+            rng_key, warmup_key = jax.random.split(rng_key, 2)
+            with blackjax.progress_bar(label="Warm-up"):
+                (state, parameters), _ = warmup.run(warmup_key, theta_start,
+                                                    num_steps=warmup_steps)
+
+            M = jnp.asarray(parameters["inverse_mass_matrix"])
+            sampler = getattr(blackjax, method)(self.logposterior,
+                                                **parameters)
+        else:
+            # Don't do a warmup run - the user may provide some settings.
+            sampler = getattr(blackjax, method)(self.logposterior, M,
+                                                **kernel_args)
+            state = sampler.init(theta_start)
+
+        if num_samplers == 1:
+            # Run only a single chain.
+            logger.info(f"Starting single {method} sampler.")
+
+            if start_spread > 0.0:
+                logger.info(f"Giving sampler {start_spread} sigma random "
+                            "offset.")
+                L = jnp.linalg.cholesky(M)
+                init_key, rng_key = jax.random.split(rng_key, 2)
+                gn = jax.random.normal(init_key, shape=(state.position.size,))
+                theta_start = state.position + start_spread * (L @ gn)
+                state = sampler.init(theta_start)
+
+            step = jax.jit(sampler.step)
+
+            for i in tqdm(range(num_steps), desc="Sampling"):
+                key = jax.random.fold_in(rng_key, i)
+                state, _ = step(key, state)
+                logdensities.append(float(state.logdensity))
+                positions.append(jnp.asarray(state.position))
+
+            logdensities = [logdensities]
+            positions = [positions]
+        else:
+            # Run multiple chains in parallel using JAX sharding.
+            devices = jax.devices()
+            n_devices = len(devices)
+            if num_samplers % n_devices != 0:
+                raise ValueError(
+                    f"The number of chain samplers = {num_samplers} must be "
+                    "divisible by the number of available devices = "
+                    f"{n_devices}."
+                )
+
+            logger.info(f"Starting {num_samplers} {method} samplers across "
+                        f"{n_devices} devices.")
+
+            # Create starting states.
+            if start_spread > 0.0:
+                logger.info(f"Giving samplers {start_spread} sigma random "
+                            "offset.")
+                L = jnp.linalg.cholesky(M)
+                init_key, rng_key = jax.random.split(rng_key, 2)
+                gn = jax.random.normal(
+                    init_key, shape=(num_samplers, state.position.size)
+                )
+                theta_start = state.position + start_spread * (gn @ L.T)
+                states = [
+                    sampler.init(theta_start[i]) for i in range(num_samplers)
+                ]
+            else:
+                states = [
+                    sampler.init(state.position) for _ in range(num_samplers)
+                ]
+
+            states = jax.tree.map(lambda *xs: jnp.stack(xs), *states)
+            chain_keys = jax.random.split(rng_key, num_samplers)
+
+            # Initialize sharding setup.
+            mesh = jax.make_mesh((n_devices,), ("chain",))
+            chain_sharding = NamedSharding(mesh, PartitionSpec("chain"))
+            chain_keys = jax.device_put(chain_keys, chain_sharding)
+            states = jax.tree.map(lambda x: jax.device_put(x, chain_sharding),
+                                  states)
+
+            # The running function.
+            def run_loop(key, kernel, state, num_samples):
+                @jax.jit
+                def step(state, key):
+                    state, _ = kernel(key, state)
+                    return state, (state.logdensity, state.position)
+
+                sample_keys = jax.random.split(key, num_samples)
+                _, states = jax.lax.scan(step, state, sample_keys)
+                return states
+
+            def shard_chains(keys, local_states):
+                return jax.vmap(
+                    lambda k, s: run_loop(k, sampler.step, s, num_steps),
+                    in_axes=(0, 0),
+                )(keys, local_states)
+
+            state_spec = jax.tree.map(
+                lambda _: PartitionSpec("chain"), states
+            )
+
+            # The actual sharder: it maps from (starting) states to
+            # an output array of [logp, theta] per chain.
+            parallel_sampling = jax.jit(
+                jax.shard_map(
+                    shard_chains, mesh=mesh,
+                    in_specs=(PartitionSpec("chain"), state_spec),
+                    out_specs=(
+                        PartitionSpec("chain", None),
+                        PartitionSpec("chain", None, None),
+                    ),
+                    check_vma=False,
+                )
+            )
+
+            # Sampling!
+            with blackjax.progress_bar(label="Sampling"):
+                logdensities, positions = parallel_sampling(chain_keys, states)
+                positions.block_until_ready()
+
+        return logdensities, positions

@@ -1,13 +1,12 @@
 import argparse
-import logging
-import os
-
-import jax
+import blackjax
 import jax.numpy as jnp
 import jax.scipy as jsc
-import numpy as np
-
+import logging
 import matplotlib.pyplot as plt
+import numpy as np
+import os
+
 import cuneifit
 import cuneifit.plots
 from . import config
@@ -24,7 +23,8 @@ logger = logging.getLogger(__name__)
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="Cuneifit",
-        description="Cuneifit --- Differentiable Inference for Simons Observatory"  # noqa: E501
+        description=("Cuneifit --- Differentiable Inference "
+                     "for Simons Observatory")
     )
     parser.add_argument("run_file", action="store",
                         help="A run configuration to analyze.")
@@ -97,8 +97,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if (min_args := run_config.get("minimizer", None)):
         logger.info("Optimizing parameters.")
+
         min_args["max_steps"] = min_args.get("max_steps", 100)
         min_args["learning_rate"] = min_args.get("learning_rate", 0.1)
+
         chain = pipeline.minimize(theta, tqdm=tqdm, **min_args)
         theta = chain[-1]
 
@@ -129,15 +131,12 @@ def main(argv: list[str] | None = None) -> int:
                header=" ".join(pipeline.parameters), fmt="%.8e")
 
     if args.plot:
-        fig, axes = cuneifit.plots.plot_fisher_triangle(pipeline, theta, F,
-                                                        **plot_args)
+        cuneifit.plots.plot_fisher_triangle(pipeline, theta, F, **plot_args)
         plt.savefig(os.path.join(dirname, "fisher.pdf"), bbox_inches="tight")
 
     if (chain_args := run_config.get("chain", None)):
         logger.info("Running chains.")
 
-        import blackjax
-        import secrets
         n_runners = chain_args.get("runners", 1)
         n_samples = chain_args["samples"]
         method = chain_args.get("method", "hmc")
@@ -146,163 +145,24 @@ def main(argv: list[str] | None = None) -> int:
             raise RuntimeError(f"Sampling method {method} not found in"
                                "blackjax.")
 
-        M = jnp.linalg.inv(F)
-        rng_key = jax.random.key(secrets.randbits(32))
+        start_spread = chain_args.get("start_spread", 0.0)
+        warmup_steps = chain_args.get("warmup", 0)
+        kernel_args = chain_args.get("args", {})
 
-        if (warmup_steps := chain_args.get("warmup", None)) > 0:
-            # Do a warmup run.
-            logger.info(f"Running {warmup_steps} warm-up steps.")
-            kernel_args = chain_args.get("args", {})
+        logdensities, positions = pipeline.sample(
+            theta, num_steps=n_samples, num_samplers=n_runners, method=method,
+            warmup_steps=warmup_steps, kernel_args=kernel_args,
+            start_spread=start_spread, tqdm=tqdm)
 
-            warmup = blackjax.window_adaptation(
-                getattr(blackjax, method), pipeline.logposterior,
-                initial_inverse_mass_matrix=M, is_mass_matrix_diagonal=False,
-                **kernel_args
+        logger.info("Writing chains to files.")
+
+        for i in range(n_runners):
+            np.savetxt(
+                output + f".{i+1}.txt",
+                np.c_[logdensities[i], positions[i]], delimiter="\t",
+                fmt=["%.5f"] + ["%.5e"] * len(pipeline.parameters),
+                header="log-posterior " + " ".join(pipeline.parameters)
             )
-
-            rng_key, warmup_key = jax.random.split(rng_key, 2)
-            with blackjax.progress_bar(label="Warm-up"):
-                (state, parameters), _ = warmup.run(warmup_key, theta,
-                                                    num_steps=warmup_steps)
-
-            M = jnp.asarray(parameters["inverse_mass_matrix"])
-            sampler = getattr(blackjax, method)(pipeline.logposterior,
-                                                **parameters)
-        else:
-            # Don't do a warmup run - the user may provide some settings.
-            kernel_args = chain_args.get("args", {})
-            sampler = getattr(blackjax, method)(pipeline.logposterior, M,
-                                                **kernel_args)
-            state = sampler.init(theta)
-
-        if n_runners == 1:
-            # Run only a single chain.
-            logger.info(f"Starting single {method} sampler.")
-
-            if (scale := chain_args.get("start_spread", 0.0)) > 0.0:
-                logger.info(f"Giving sampler {scale} sigma random offset.")
-                L = jnp.linalg.cholesky(M)
-                init_key, rng_key = jax.random.split(rng_key, 2)
-                gn = jax.random.normal(init_key, shape=(state.position.size,))
-                theta_start = state.position + scale * (L @ gn)
-                state = sampler.init(theta_start)
-
-            step = jax.jit(sampler.step)
-
-            fp = open(output + ".1.txt", "w")
-            fp.write("# log-posterior " + " ".join(pipeline.parameters) + "\n")
-            logdensities = []
-            positions = []
-
-            for i in tqdm(range(n_samples), desc="Sampling"):
-                key = jax.random.fold_in(rng_key, i)
-                state, _ = step(key, state)
-                logdensities.append(float(state.logdensity))
-                positions.append(np.asarray(state.position))
-
-                fp.write(f"{state.logdensity:.3f}\t"
-                         + "\t".join([f"{x:.8e}" for x in state.position])
-                         + "\n")
-                fp.flush()
-
-            fp.close()
-
-            logdensities = np.asarray([logdensities])
-            positions = np.asarray([positions])
-        else:
-            # Run multiple chains in parallel using JAX sharding.
-            devices = jax.devices()
-            n_devices = len(devices)
-            if n_runners % n_devices != 0:
-                raise ValueError(
-                    f"The number of chain runners = {n_runners} must be "
-                    "divisible by the number of available devices = "
-                    f"{n_devices}."
-                )
-
-            logger.info(f"Starting {n_runners} {method} samplers across "
-                        f"{n_devices} devices.")
-
-            # Create starting states.
-            if (scale := chain_args.get("start_spread", 0.0)) > 0.0:
-                logger.info(f"Giving samplers {scale} sigma random offset.")
-                L = jnp.linalg.cholesky(M)
-                init_key, rng_key = jax.random.split(rng_key, 2)
-                gn = jax.random.normal(init_key,
-                                       shape=(n_runners, state.position.size))
-                theta_start = state.position + scale * (gn @ L.T)
-                states = [
-                    sampler.init(theta_start[i]) for i in range(n_runners)
-                ]
-            else:
-                states = [
-                    sampler.init(state.position) for _ in range(n_runners)
-                ]
-
-            states = jax.tree.map(lambda *xs: jnp.stack(xs), *states)
-            chain_keys = jax.random.split(rng_key, n_runners)
-
-            # Initialize sharding setup.
-            from jax.sharding import NamedSharding, PartitionSpec
-            mesh = jax.make_mesh((n_devices,), ("chain",))
-            chain_sharding = NamedSharding(mesh, PartitionSpec("chain"))
-            chain_keys = jax.device_put(chain_keys, chain_sharding)
-            states = jax.tree.map(lambda x: jax.device_put(x, chain_sharding),
-                                  states)
-
-            # The running function.
-            def run_loop(key, kernel, state, num_samples):
-                @jax.jit
-                def step(state, key):
-                    state, _ = kernel(key, state)
-                    return state, (state.logdensity, state.position)
-
-                sample_keys = jax.random.split(key, num_samples)
-                _, states = jax.lax.scan(step, state, sample_keys)
-                return states
-
-            def shard_chains(keys, local_states):
-                return jax.vmap(
-                    lambda k, s: run_loop(k, sampler.step, s, n_samples),
-                    in_axes=(0, 0),
-                )(keys, local_states)
-
-            state_spec = jax.tree.map(
-                lambda _: PartitionSpec("chain"), states
-            )
-
-            # The actual sharder: it maps from (starting) states to
-            # an output array of [logp, theta] per chain.
-            parallel_sampling = jax.jit(
-                jax.shard_map(
-                    shard_chains, mesh=mesh,
-                    in_specs=(PartitionSpec("chain"), state_spec),
-                    out_specs=(
-                        PartitionSpec("chain", None),
-                        PartitionSpec("chain", None, None),
-                    ),
-                    check_vma=False,
-                )
-            )
-
-            # Sampling!
-            with blackjax.progress_bar(label="Sampling"):
-                logdensities, positions = parallel_sampling(chain_keys, states)
-                positions.block_until_ready()
-
-            # Write everything to a file.
-            logdensities = np.asarray(logdensities)
-            positions = np.asarray(positions)
-
-            logger.info("Writing chains to files.")
-
-            for i in range(n_runners):
-                np.savetxt(
-                    output + f".{i+1}.txt",
-                    np.c_[logdensities[i], positions[i]],
-                    fmt=["%.3f"] + ["%.8e"] * len(pipeline.parameters),
-                    header="log-posterior " + " ".join(pipeline.parameters)
-                )
 
         if args.plot:
             # Create getdist triangle + 1D plots.
@@ -318,7 +178,8 @@ def main(argv: list[str] | None = None) -> int:
 
             labels = [plot_args.get("labels", {}).get(p, p)
                       for p in pipeline.parameters]
-            chain = MCSamples(samples=positions, loglikes=-logdensities,
+            chain = MCSamples(samples=np.asarray(positions),
+                              loglikes=-np.asarray(logdensities),
                               names=pipeline.parameters, labels=labels)
             markers = {}
             if bestfit is not None:
@@ -330,11 +191,11 @@ def main(argv: list[str] | None = None) -> int:
                 chain.removeBurn(burn_in)
 
             g = plots.get_subplot_plotter(settings=settings)
-            g.plots_1d([chain])
+            g.plots_1d([chain], markers=markers)
             g.export(os.path.join(dirname, "posteriors.pdf"))
 
             g = plots.get_subplot_plotter(settings=settings)
-            g.triangle_plot([chain], filled=True)
+            g.triangle_plot([chain], filled=True, markers=markers)
             g.export(os.path.join(dirname, "triangle.pdf"))
 
     logger.info("Done.")
