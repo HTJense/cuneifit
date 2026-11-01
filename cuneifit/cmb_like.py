@@ -185,8 +185,14 @@ class MultiFrequency(GaussianLikelihood):
         spec = jnp.stack([
             cls[xy][self.ells] for xy in self.requested_cls
         ])
-        spec = (jnp.broadcast_to(spec[:, :, None, None], foregrounds.shape)
-                + foregrounds)
+        spec = jnp.broadcast_to(spec[:, :, None, None],
+                                (*spec.shape, len(self.experiments),
+                                 len(self.experiments)))
+
+        for i, cl in enumerate(self.requested_cls):
+            for j, exp1 in enumerate(self.experiments):
+                for k, exp2 in enumerate(self.experiments):
+                    spec = spec.at[i, :, j, k].add(foregrounds[cl, exp1, exp2])
 
         return self.calibrate_spectra(spec, theta)
 
