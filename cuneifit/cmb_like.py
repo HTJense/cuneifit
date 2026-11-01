@@ -1,7 +1,7 @@
-import numpy as np
-import sacc
 import os
 import jax.numpy as jnp
+import numpy as np
+import sacc
 
 from .config import resolve_config, load_config, resolve_data
 from .likelihood import GaussianLikelihood
@@ -192,7 +192,9 @@ class MultiFrequency(GaussianLikelihood):
         for i, cl in enumerate(self.requested_cls):
             for j, exp1 in enumerate(self.experiments):
                 for k, exp2 in enumerate(self.experiments):
-                    spec = spec.at[i, :, j, k].add(foregrounds[cl, exp1, exp2])
+                    spec = spec.at[i, :, j, k].add(
+                        foregrounds[cl, exp1, exp2][self.ells]
+                    )
 
         return self.calibrate_spectra(spec, theta)
 

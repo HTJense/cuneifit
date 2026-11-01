@@ -1,9 +1,12 @@
+import os
+
 import numpy as np
 import jax
 import jax.numpy as jnp
+import sacc
 from scipy import constants
 
-from .config import resolve_config, load_config
+from .config import resolve_config, load_config, resolve_data
 from .theory import Theory
 
 from . import fg_model as fgm
@@ -20,7 +23,7 @@ def _cmb2bb(nu, T=T_CMB):
 
 
 class BandpowerForegrounds(Theory):
-    def __init__(self, likelihood, config: str | dict | None, **kwargs):
+    def __init__(self, config: str | dict | None, **kwargs):
         if type(config) is str:
             config = resolve_config(config)
             self.config = load_config(config)
@@ -33,18 +36,31 @@ class BandpowerForegrounds(Theory):
             raise TypeError("Configuration should be string (filename) or "
                             f"dictionary, but was given {type(config)}.")
 
-        self.ells = likelihood.ells
+        self.lmax = self.config["lmax"]
+        self.ells = jnp.arange(self.lmax+1)
         self.experiments = self.config["experiments"]
 
+        data_path = resolve_data(self.config["data_folder"])
+        s = sacc.Sacc.load_fits(os.path.join(data_path,
+                                             self.config["input_file"]))
+
+        self.tracers = {}
+        for name, tracer in s.tracers.items():
+            self.tracers[name] = {
+                "nu": tracer.nu,
+                "bp": tracer.bandpass,
+                "beam": tracer.beam.T
+            }
+
         if self.config["top_hat_band"] is None:
-            self.load_bandpass_from_file(likelihood)
+            self.load_bandpass_from_file()
         else:
-            self.build_bandpass(likelihood)
+            self.build_bandpass()
 
         if self.config["beam_profile"] is None:
-            self.init_beam_flat(likelihood)
+            self.init_beam_flat()
         elif "beam_from_file" in self.config["beam_profile"]:
-            self.init_beam_from_file(likelihood)
+            self.init_beam_from_file()
 
         self.parameters = []
         for exp in self.experiments:
@@ -55,13 +71,13 @@ class BandpowerForegrounds(Theory):
 
         self.build_foreground_model(self.config["components"])
 
-    def load_bandpass_from_file(self, likelihood):
-        self.nu = [likelihood.tracers[exp + "_s0"]["nu"].astype(float)
+    def load_bandpass_from_file(self):
+        self.nu = [self.tracers[exp + "_s0"]["nu"].astype(float)
                    for exp in self.experiments]
-        self.bp = [likelihood.tracers[exp + "_s0"]["bp"].astype(float)
+        self.bp = [self.tracers[exp + "_s0"]["bp"].astype(float)
                    for exp in self.experiments]
 
-    def build_bandpass(self, likelihood):
+    def build_bandpass(self):
         self.nu = []
         self.bp = []
 
@@ -75,7 +91,7 @@ class BandpowerForegrounds(Theory):
             self.nu.append(np.linspace(num - bw / 2., num + bw / 2., nsteps))
             self.bp.append(np.ones((nsteps,)))
 
-    def init_beam_flat(self, likelihood):
+    def init_beam_flat(self):
         for i, (exp, bp, nu) in enumerate(zip(self.experiments, self.bp,
                                               self.nu)):
             bp_beam = bp[:, None] * np.ones((1, len(self.ells)))
@@ -86,10 +102,10 @@ class BandpowerForegrounds(Theory):
 
             self.bp[i] = jnp.array(bp_beam)
 
-    def init_beam_from_file(self, likelihood):
+    def init_beam_from_file(self):
         for i, (exp, bp, nu) in enumerate(zip(self.experiments, self.bp,
                                               self.nu)):
-            beam = likelihood.tracers[exp + "_s0"]["beam"]
+            beam = self.tracers[exp + "_s0"]["beam"]
             bp_beam = bp[:, None] * beam[:, self.ells]
 
             self.nu[i] = jnp.array(nu)
@@ -164,7 +180,7 @@ class BandpowerForegrounds(Theory):
 
         return nus, bps
 
-    def get_foreground_model(self, theta):
+    def get_foregrounds(self, theta):
         nu, bp = self.apply_bandpass_shifts(theta[self.bp_index])
 
         foregrounds = {}
@@ -185,7 +201,7 @@ class BandpowerForegrounds(Theory):
         return foregrounds
 
     def compute(self, theta, /, **kwargs):
-        return {"foregrounds": self.get_foreground_model(theta)}
+        return {"foregrounds": self.get_foregrounds(theta)}
 
     @property
     def inputs(self):

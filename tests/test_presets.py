@@ -20,7 +20,7 @@ def test_act_dr6_mflike_preset(is_github_workflow, dr6_dir):
 
     cuneifit.config.add_data_path(dr6_dir)
     dr6 = cuneifit.MultiFrequency("act_dr6")
-    cuneifit.BandpowerForegrounds(dr6, "act_dr6_foregrounds")
+    cuneifit.BandpowerForegrounds("act_dr6_foregrounds")
 
 
 def test_act_dr6_lite_preset(dr6_dir):
@@ -38,7 +38,7 @@ def test_act_dr6_mflike_fiducial(is_github_workflow, emu_dir, dr6_dir):
     cmb = cuneifit.Cosmopower(yaml_file=os.path.join(emu_dir, parser_filename),
                               root_dir=emu_dir)
     dr6 = cuneifit.MultiFrequency("act_dr6")
-    fg = cuneifit.BandpowerForegrounds(dr6, "act_dr6_foregrounds")
+    fg = cuneifit.BandpowerForegrounds("act_dr6_foregrounds")
     pipeline = cuneifit.Pipeline(cmb, dr6, fg)
 
     theta = jnp.array([utilities.test_dr6_parameters[p]
