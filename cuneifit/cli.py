@@ -101,16 +101,18 @@ def main(argv: list[str] | None = None) -> int:
         num_runs = min_args.get("runners", 1)
         method = min_args.get("method", "adam")
         patience = min_args.get("patience", 1)
+        min_steps = min_args.get("min_steps", 1)
         max_steps = min_args.get("max_steps", 10 + len(theta) * 5)
         start_spread = min_args.get("start_spread", 0.2)
-        rtol = min_args.get("rtol", 1e-2)
+        rtol = min_args.get("rtol", 0.0)
         atol = min_args.get("atol", 1e-2)
         opt_args = min_args.get("args", {})
 
         logp, thetas = pipeline.minimize(
             theta, num_runs=num_runs, method=method, patience=patience,
-            max_steps=max_steps, start_spread=start_spread, rtol=rtol,
-            atol=atol, tqdm=tqdm, opt_args=opt_args
+            min_steps=min_steps, max_steps=max_steps,
+             start_spread=start_spread, rtol=rtol, atol=atol, tqdm=tqdm,
+             opt_args=opt_args,
         )
 
         logp = np.asarray(logp)

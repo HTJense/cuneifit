@@ -3,6 +3,7 @@ from jax.sharding import NamedSharding, PartitionSpec
 import jax.numpy as jnp
 import jax.scipy as jsc
 import logging
+import numpy as np
 from typing import Callable, Optional
 
 from .likelihood import Likelihood, GaussianLikelihood
@@ -327,14 +328,55 @@ class Pipeline:
 
     def minimize(self, theta_start: jnp.ndarray, num_runs: int = 1,
                  method: str = "adam", patience: int = 1,
+                 min_steps: Optional[int] = None,
                  max_steps: Optional[int] = None, start_spread: float = 0.0,
-                 rng_key=None, rtol: float = 1e-2, atol: float = 1e-2,
+                 rng_key=None, rtol: float = 0.0, atol: float = 1e-2,
                  tqdm=None, opt_args=None) -> jnp.ndarray | list[jnp.ndarray]:
-        """ Minimize the log-posterior function using the Adam gradient descent
-        sampler.
+        """ Minimize the log-posterior function using an optax algorithm (e.g.
+        Adam).
 
         Parameters
         ----------
+        theta_start : jnp.ndarray
+            The starting point of the minimizer(s). By default, the first
+            minimizer will start at this point, while all other minimzers will
+            start at a random point near this starting point (controlled by
+            the :code:`start_spread` parameter).
+        num_runs : int
+            How many minimzers to run. Defaults to only one runner.
+        method : str
+            The method to use. Must be a valid
+            `optax <https://optax.readthedocs.io/en/latest/>`_ class. Defaults
+            to use the Adam optimizer.
+        min_steps : int | None
+            The minimum number of steps to run each minimizer for. If set to
+            some positive number, each minimizer will run for at least this
+            many steps.
+        max_steps : int | None
+            The maximum number of steps to run each minimizer for. If set to
+            :code:`None`, the minimizer will run until the log-posterior stops
+            improving (see :code:`patience` parameter).
+        start_spread : float
+            If set to a number > 0, will start each minimizer after the first
+            from a region around the starting point given by the fisher matrix
+            around the starting point. The start_spread parameter scales the
+            sampling range. Can help converge on a slightly better minimum.
+        rng_key
+            If given, a random number generator for :code:`jax`. Defaults to a
+            system random seed.
+        patience : int
+            How many steps to wait before closing out of the loop if the
+            log-posterior does not improve. The minimizer will stop if the
+            log-posterior does not improve the best-fit beyond
+            :math:`a + r |\\log(p)|_{\\rm best}` for :code:`patience` steps in
+            a row.
+        rtol : float
+            The relative tolerance of the stopping criterion.
+        atol : float
+            The absolute tolerance of the stopping criterion.
+        tqdm
+        opt_args : dict
+            Any arguments that get passed to the :code:`optax` optimizer class.
         """
         import optax
 
@@ -345,8 +387,14 @@ class Pipeline:
             rng_key = jax.random.key(secrets.randbits(32))
         if opt_args is None:
             opt_args = {}
+        if min_steps is None:
+            min_steps = 1
         if max_steps is None:
             max_steps = jnp.inf
+
+        assert patience >= 1, "Patience should be at least 1."
+        assert max_steps > min_steps, ("Maximum number of steps should be "
+                                       "higher than minimum number.")
 
         starting_points = [theta_start] * num_runs
 
@@ -356,10 +404,10 @@ class Pipeline:
             L = jnp.linalg.cholesky(cov)
             init_key, rng_key = jax.random.split(rng_key, 2)
             gn = jax.random.normal(init_key,
-                                   shape=(num_runs, theta_start.size))
-            for i in range(num_runs):
+                                   shape=(num_runs-1, theta_start.size))
+            for i in range(1, num_runs):
                 starting_points[i] = (starting_points[i]
-                                      + start_spread * (L @ gn[i]))
+                                      + start_spread * (L @ gn[i-1]))
 
         it_runs = range(num_runs)
         if num_runs > 1 and tqdm is not None:
@@ -373,7 +421,12 @@ class Pipeline:
         for i in it_runs:
             theta = starting_points[i]
 
-            optimizer = getattr(optax, method)(**opt_args)
+            try:
+                optimizer = getattr(optax, method)(**opt_args)
+            except AttributeError:
+                raise RuntimeError(f"Optimizer method {method} unknown. "
+                                   "Please check the optax documentation for "
+                                   "a valid method.")
             state = optimizer.init(theta)
 
             best = theta
@@ -389,6 +442,13 @@ class Pipeline:
                 steps += 1
                 v, g = vgrad(theta)
 
+                if not jnp.isfinite(v):
+                    logger.debug("Non-finite log-posterior.")
+                    break
+                if not jnp.all(jnp.isfinite(g)):
+                    logger.debug("Non-finite gradient.")
+                    break
+
                 delta_logp = best_lp - v
                 tol = rtol * jnp.abs(best_lp) + atol
 
@@ -401,21 +461,16 @@ class Pipeline:
                 else:
                     wait += 1
 
-                if wait >= patience or steps >= max_steps:
-                    logger.debug(f"Best-fit found: {best}.")
-                    break
+                if steps >= min_steps:
+                    if wait >= patience or steps >= max_steps:
+                        logger.debug(f"Best-fit found: {best}.")
+                        break
 
                 updates, state = optimizer.update(g, state, theta)
                 theta = optax.apply_updates(theta, updates)
 
                 if not jnp.all(jnp.isfinite(theta)):
                     logger.debug("Non-finite theta.")
-                    break
-                if not jnp.isfinite(v):
-                    logger.debug("Non-finite log-posterior.")
-                    break
-                if not jnp.all(jnp.isfinite(g)):
-                    logger.debug("Non-finite gradient.")
                     break
 
                 if tbar is not None:
@@ -439,6 +494,34 @@ class Pipeline:
                tqdm=None
                ) -> (list, list):
         """Sample a chain using a BlackJAX sampler (e.g. NUTS or HMC).
+
+        Parameters
+        ----------
+        theta_start : jnp.ndarray
+            The starting point of the samplers.
+        warmup_steps : int
+            How many warm-up steps are to be used to condition the sampler.
+        num_steps : int
+            How many steps each sampler should take.
+        num_samplers : int
+            The number of samplers to be run. If this number is bigger than 1
+            and it does not divide the number of devices, this number gets
+            increased until it does, otherwise JAX will not be able to shard
+            this.
+        start_spread : float
+            If set to a number > 0, will start each sampler from a region
+            around the starting point given by the fisher matrix at the
+            starting point. The start_spread parameter scales the initial
+            sampling range. Can help explore the local region better.
+        method : str
+            A `blackjax <https://blackjax-devs.github.io/blackjax/>`_ sampler
+            class to be used. Defaults to use the No U-Turn Sampler (NUTS).
+        kernel_args : dict
+            If given and no warmup is used, use these parameters for
+            initialization. See the :code:`blackjax` documentation for more
+            information.
+        rng_key
+        tqdm
         """
         import blackjax
 
@@ -501,18 +584,25 @@ class Pipeline:
                 logdensities.append(float(state.logdensity))
                 positions.append(jnp.asarray(state.position))
 
-            logdensities = [logdensities]
-            positions = [positions]
+            logdensities = np.asarray([logdensities])
+            positions = np.asarray([positions])
         else:
             # Run multiple chains in parallel using JAX sharding.
             devices = jax.devices()
             n_devices = len(devices)
             if num_samplers % n_devices != 0:
-                raise ValueError(
+                new_samplers = (
+                    num_samplers + (n_devices - num_samplers % n_devices)
+                )
+
+                logger.warning(
                     f"The number of chain samplers = {num_samplers} must be "
                     "divisible by the number of available devices = "
-                    f"{n_devices}."
+                    f"{n_devices}. I am increasing the number of samplers to "
+                    f"{new_samplers} to make it fit."
                 )
+
+                num_samplers = new_samplers
 
             logger.info(f"Starting {num_samplers} {method} samplers across "
                         f"{n_devices} devices.")
@@ -584,5 +674,8 @@ class Pipeline:
             with blackjax.progress_bar(label="Sampling"):
                 logdensities, positions = parallel_sampling(chain_keys, states)
                 positions.block_until_ready()
+
+            logdensities = np.asarray(logdensities)
+            positions = np.asarray(positions)
 
         return logdensities, positions
