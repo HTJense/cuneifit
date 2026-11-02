@@ -1,5 +1,4 @@
 import argparse
-import blackjax
 import jax.numpy as jnp
 import jax.scipy as jsc
 import logging
@@ -174,10 +173,6 @@ def main(argv: list[str] | None = None) -> int:
         n_runners = chain_args.get("runners", 1)
         n_samples = chain_args["samples"]
         method = chain_args.get("method", "hmc")
-
-        if not hasattr(blackjax, method):
-            raise RuntimeError(f"Sampling method {method} not found in"
-                               "blackjax.")
 
         start_spread = chain_args.get("start_spread", 0.0)
         warmup_steps = chain_args.get("warmup", 0)

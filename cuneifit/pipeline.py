@@ -535,6 +535,10 @@ class Pipeline:
 
         F = self.fisher(theta_start)
         M = jnp.linalg.inv(F)
+        
+        if not hasattr(blackjax, method):
+            raise RuntimeError(f"Sampling method {method} not found in"
+                               "blackjax.")
 
         logdensities = []
         positions = []
