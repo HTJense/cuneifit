@@ -41,6 +41,18 @@ The run configuration file
 The run configuration is setup in a yaml file containing several blocks. An
 annotated example configuration is given here.
 
+.. important::
+
+    To run the minimizer, make sure you have installed :code:`optax`.
+
+    To run the full chain sampler, make sure you have installed
+    :code:`blackjax`.
+    Note that the sampler makes use of jax's sharding API. If you are running
+    the code on a CPU, then XLA will not default to using multiple CPU cores
+    at the same time. This can be enabled by setting the environment variable
+    :code:`export XLA_FLAGS="--xla_force_host_platform_device_count=<count>"`
+    with :code:`<count>` replaced by however many CPU cores you have.
+
 A simple analysis
 -----------------
 
