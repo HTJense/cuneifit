@@ -47,11 +47,8 @@ For example, modules can use configuration as:
 .. code-block:: python
 
     class CustomTheory(Theory):
-        def __init__(self, config: str | dict):
-            if type(config) is str:
-                self.config = cuneifit.config.config_from_file(config)
-            elif type(config) is dict:
-                self.config = config
+        def __init__(self, config: str | dict, **kwargs):
+            self.config = cuneifit.config.load_config(config, **kwargs)
 
             ...
 
@@ -71,4 +68,8 @@ and go to the subdirectory :code:`cuneifit/presets`. Place your yaml file in
 this directory, and any use of cuneifit will be able to access it. For example,
 the included :code:`act_dr6.yaml` preset is accessible with
 :code:`cuneifit.config.config_from_file("act_dr6")`.
+
+Specific parameters from presets can be overwritten by passing them as
+keyword-arguments after the preset file name, for example as
+:code:`cuneifit.Likelihood("act_dr6", input_file="custom_dr6_file.fits")`
 
