@@ -3,7 +3,7 @@ from jax.sharding import NamedSharding, PartitionSpec
 import jax.numpy as jnp
 import jax.scipy as jsc
 import logging
-from typing import Callable
+from typing import Callable, Optional
 
 from .likelihood import Likelihood, GaussianLikelihood
 from .prior import Prior
@@ -325,58 +325,115 @@ class Pipeline:
 
         return F
 
-    def minimize(self, theta_start: jnp.ndarray, max_steps: int,
-                 tqdm: Callable = lambda x: x, **kwargs) -> list[jnp.ndarray]:
+    def minimize(self, theta_start: jnp.ndarray, num_runs: int=1,
+                 method: str = "adam", patience: int = 1,
+                 max_steps: Optional[int] = None, start_spread: float = 0.0,
+                 rng_key=None, rtol: float = 1e-2, atol: float = 1e-2,
+                 tqdm=None, opt_args=None) -> jnp.ndarray | list[jnp.ndarray]:
         """ Minimize the log-posterior function using the Adam gradient descent
         sampler.
 
         Parameters
         ----------
-        theta_start : jnp.ndarray
-            An initial guess for the best-fit. Starts the sampling from this
-            location.
-        max_steps : int
-            Maximum amount of steps for the minimizer.
-        tqdm : Callable
-            If provided, use this function as the tqdm style progress bar.
         """
         import optax
 
-        # Find the best-fitting log-posterior.
-        optimizer = optax.adam(**kwargs)
-        state = optimizer.init(theta_start)
+        if num_runs < 1:
+            raise ValueError("num_runs must be at least 1.")
+        if rng_key is None:
+            import secrets
+            rng_key = jax.random.key(secrets.randbits(32))
+        if opt_args is None:
+            opt_args = {}
+        if max_steps is None:
+            max_steps = jnp.inf
 
+        starting_points = [theta_start] * num_runs
+
+        if start_spread > 0.0:
+            F = self.fisher(theta_start)
+            cov = jnp.linalg.inv(F)
+            L = jnp.linalg.cholesky(cov)
+            init_key, rng_key = jax.random.split(rng_key, 2)
+            gn = jax.random.normal(init_key, shape=(num_runs, theta_start.size))
+            for i in range(num_runs):
+                starting_points[i] = starting_points[i] + start_spread * (L @ gn[i])
+
+        it_runs = range(num_runs)
+        if num_runs > 1 and tqdm is not None:
+            it_runs = tqdm(it_runs, desc="Minimizers")
+
+        minima = []
         vgrad = jax.jit(jax.value_and_grad(
             lambda theta: -self.logposterior(theta)
         ))
 
-        chain = [theta_start]
-        theta = theta_start.copy()
+        for i in it_runs:
+            theta = starting_points[i]
 
-        for _ in tqdm(range(max_steps), desc="Optimizing"):
-            v, g = vgrad(theta)
-            updates, state = optimizer.update(g, state, theta)
-            theta = optax.apply_updates(theta, updates)
+            optimizer = getattr(optax, method)(**opt_args)
+            state = optimizer.init(theta)
 
-            if not jnp.all(jnp.isfinite(theta)):
-                print("Non-finite theta.")
-                break
-            if not jnp.isfinite(v):
-                print("Non-finite log-posterior.")
-                break
-            if not jnp.all(jnp.isfinite(g)):
-                print("Non-finite gradient.")
-                break
+            best = theta
+            best_lp = -self.logposterior(theta)
+            wait = 0
+            steps = 0
 
-            chain.append(theta)
+            tbar = None
+            if tqdm is not None:
+                tbar = tqdm(total=max_steps, leave=False)
 
-        return chain
+            while True:
+                steps += 1
+                v, g = vgrad(theta)
+
+                delta_logp = best_lp - v
+                tol = rtol * jnp.abs(best_lp) + atol
+                
+                if v < best_lp:
+                    best_lp = v
+                    best = theta
+
+                if delta_logp > tol:
+                    wait = 0
+                else:
+                    wait += 1
+
+                if wait >= patience or steps >= max_steps:
+                    logger.debug(f"Best-fit found: {best}.")
+                    break
+
+                updates, state = optimizer.update(g, state, theta)
+                theta = optax.apply_updates(theta, updates)
+
+                if not jnp.all(jnp.isfinite(theta)):
+                    logger.debug("Non-finite theta.")
+                    break
+                if not jnp.isfinite(v):
+                    logger.debug("Non-finite log-posterior.")
+                    break
+                if not jnp.all(jnp.isfinite(g)):
+                    logger.debug("Non-finite gradient.")
+                    break
+
+                if tbar is not None:
+                    tbar.update()
+                    tbar.set_description(f"log-post = {v:.3f} / best = {best_lp:.3f}")
+
+            if tbar is not None:
+                tbar.close()
+
+            minima.append((best_lp, best))
+
+        thetas = [theta for _, theta in sorted(minima, key=lambda x: x[0])]
+        logpost = [logp for logp, _ in sorted(minima, key=lambda x: x[0])]
+        return logpost, thetas
 
     def sample(self, theta_start: jnp.ndarray, num_steps: int,
                num_samplers: int = 1, method: str = "nuts", rng_key=None,
                kernel_args=None, warmup_steps: int = 0,
                start_spread: float = 0.0,
-               tqdm: Callable = lambda x: x, **kwargs
+               tqdm=None
                ) -> (list, list):
         """Sample a chain using a BlackJAX sampler (e.g. NUTS or HMC).
         """
@@ -387,6 +444,8 @@ class Pipeline:
             rng_key = jax.random.key(secrets.randbits(32))
         if kernel_args is None:
             kernel_args = {}
+        if tqdm is None:
+            tqdm = lambda x, **kwargs: x
 
         F = self.fisher(theta_start)
         M = jnp.linalg.inv(F)

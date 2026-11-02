@@ -98,11 +98,25 @@ def main(argv: list[str] | None = None) -> int:
     if (min_args := run_config.get("minimizer", None)):
         logger.info("Optimizing parameters.")
 
-        min_args["max_steps"] = min_args.get("max_steps", 100)
-        min_args["learning_rate"] = min_args.get("learning_rate", 0.1)
+        num_runs = min_args.get("runners", 1)
+        method = min_args.get("method", "adam")
+        patience = min_args.get("patience", 1)
+        max_steps = min_args.get("max_steps", 10 + len(theta) * 5)
+        start_spread = min_args.get("start_spread", 0.2)
+        rtol = min_args.get("rtol", 1e-2)
+        atol = min_args.get("atol", 1e-2)
+        opt_args = min_args.get("args", {})
 
-        chain = pipeline.minimize(theta, tqdm=tqdm, **min_args)
-        theta = chain[-1]
+        logp, thetas = pipeline.minimize(theta, num_runs=num_runs, method=method,
+                                         patience=patience, max_steps=max_steps,
+                                         start_spread=start_spread, rtol=rtol,
+                                         atol=atol, tqdm=tqdm, opt_args=opt_args)
+
+        logp = np.asarray(logp)
+        thetas = np.asarray(thetas)
+        np.savetxt(output + ".minima", np.c_[logp, thetas], header = "log-posterior " + " ".join(pipeline.parameters), fmt=["%.5f"] + ["%.5e"] * len(pipeline.parameters))
+
+        theta = thetas[0]
 
         logprior = pipeline.logprior(theta)
         loglike = pipeline.loglike(theta)
