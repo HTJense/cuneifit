@@ -28,7 +28,7 @@ def _load_defaults(loader, node):
         defaults_file = loader.construct_sequence(node)
 
     folder = loader.current_folder
-    loaded_defaults = {}
+    loaded_defaults = []
     for dfile in defaults_file:
         df = os.path.abspath(os.path.join(folder, dfile))
         try:
@@ -40,10 +40,21 @@ def _load_defaults(loader, node):
         except StopIteration:
             raise RuntimeError(f"File {dfile} not found in {folder}.")
 
-        loaded_defaults |= _read_yaml(df)
+        loaded_defaults.append(_read_yaml(df))
 
     loader.current_folder = folder
-    return loaded_defaults
+
+    if len(loaded_defaults) == 1:
+        return loaded_defaults[0]
+
+    results = {}
+    for item in loaded_defaults:
+        if type(item) is not dict:
+            raise TypeError("Yaml file loaded through defaults is not a "
+                            "dictionary.")
+        results |= item
+
+    return results
 
 
 DefaultsLoader.add_constructor("!defaults", _load_defaults)
