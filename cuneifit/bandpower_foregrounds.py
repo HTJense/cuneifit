@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import sacc
 from scipy import constants
 
-from .config import resolve_config, load_config, resolve_data
+from .config import load_config, resolve_data
 from .theory import Theory
 
 from . import fg_model as fgm
@@ -24,17 +24,7 @@ def _cmb2bb(nu, T=T_CMB):
 
 class BandpowerForegrounds(Theory):
     def __init__(self, config: str | dict | None, **kwargs):
-        if type(config) is str:
-            config = resolve_config(config)
-            self.config = load_config(config)
-        elif type(config) is dict:
-            config = {**config, **kwargs}
-            self.config = config
-        elif config is None:
-            self.config = kwargs
-        else:
-            raise TypeError("Configuration should be string (filename) or "
-                            f"dictionary, but was given {type(config)}.")
+        self.config = load_config(config, **kwargs)
 
         self.lmax = self.config["lmax"]
         self.ells = jnp.arange(self.lmax+1)

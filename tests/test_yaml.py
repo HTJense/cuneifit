@@ -25,3 +25,9 @@ def test_recursive_nested_yamls():
 
     for key, value in result["older_data"]["old_data"].items():
         assert result["older_data"][key] == value
+
+
+def test_overwrite_defaults():
+    result = cuneifit.config.load_config(str(rootdir / "test1.yaml"), x=5)
+
+    assert result["x"] == 5

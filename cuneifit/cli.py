@@ -56,7 +56,11 @@ def main(argv: list[str] | None = None) -> int:
     component_config = run_config["components"]
     for name, conf in component_config.items():
         if hasattr(cuneifit, name):
-            components.append(getattr(cuneifit, name)(conf))
+            comp = getattr(cuneifit, name)(conf)
+            components.append(comp)
+            run_config["components"][name] = comp.config
+
+    config.save_config(output + ".config.yaml", run_config)
 
     # Add a prior if requested.
     priors = []

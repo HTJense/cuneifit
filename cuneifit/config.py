@@ -73,6 +73,8 @@ def resolve_config(filename: str) -> str:
     if not os.path.splitext(filename)[1]:
         for ext in config_extensions:
             fn_options.append(filename + ext)
+    else:
+        fn_options.append(filename)
 
     path_options = fn_options.copy()
 
@@ -94,15 +96,36 @@ def resolve_config(filename: str) -> str:
 
 
 # Load a configuration file.
-def load_config(filename: str) -> dict:
-    with open(filename) as fp:
-        text = fp.read()
+def load_config(config: str | dict | None, **kwargs) -> dict:
+    if type(config) is str:
+        config = resolve_config(config)
 
-    DefaultsLoader.current_folder = os.path.dirname(filename)
-    DefaultsLoader.yaml_root_name = (
-        os.path.splitext(os.path.basename(filename))[0]
-    )
-    return yaml.load(text, DefaultsLoader)
+        with open(config) as fp:
+            text = fp.read()
+
+        DefaultsLoader.current_folder = os.path.dirname(config)
+        DefaultsLoader.yaml_root_name = (
+            os.path.splitext(os.path.basename(config))[0]
+        )
+        config = yaml.load(text, DefaultsLoader)
+
+        # Prevent infinite loop.
+        config.pop("preset", None)
+    elif config is None:
+        config = {}
+
+    config.update(**kwargs)
+
+    if "preset" in config:
+        preset = config.pop("preset")
+        config = load_config(preset, **config)
+
+    return config
+
+
+def save_config(filename: str, config: dict):
+    with open(filename, "w") as fp:
+        fp.write(yaml.dump(config))
 
 
 # Given a filename, explore several standardized file locations for

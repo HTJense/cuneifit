@@ -4,23 +4,13 @@ import os
 
 import jax.numpy as jnp
 
-from .config import resolve_config, load_config, resolve_data
+from .config import load_config, resolve_data
 from .theory import Theory
 
 
 class LensingCorrections(Theory):
     def __init__(self, config: str | dict | None = None, **kwargs):
-        if type(config) is str:
-            config = resolve_config(config)
-            self.config = load_config(config)
-        elif type(config) is dict:
-            config = {**config, **kwargs}
-            self.config = config
-        elif config is None:
-            self.config = kwargs
-        else:
-            raise TypeError("Configuration should be a string (filename) or "
-                            f"dictionary, but was given {type(config)}.")
+        self.config = load_config(config, **kwargs)
 
         data_path = resolve_data(self.config["data_folder"])
 
