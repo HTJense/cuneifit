@@ -19,7 +19,7 @@ def test_act_dr6_mflike_preset(is_github_workflow, dr6_dir):
         pytest.skip("Skipping DR6 mflike test on a github workflow.")
 
     cuneifit.config.add_data_path(dr6_dir)
-    dr6 = cuneifit.MultiFrequency("act_dr6")
+    cuneifit.MultiFrequency("act_dr6")
     cuneifit.BandpowerForegrounds("act_dr6_foregrounds")
 
 
