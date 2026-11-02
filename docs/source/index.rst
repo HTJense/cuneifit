@@ -16,7 +16,6 @@ Table of Contents
 
    likelihood
    theory
-   pipeline
 
 .. toctree::
    :caption: Built-In Components
@@ -26,6 +25,13 @@ Table of Contents
    cmb-like
    mf-like
    cosmopower
+
+.. toctree::
+   :caption: Analysis Pipelines
+
+   pipeline
+   Analysis Functions <pipeline-functions>
+   Automated Analysis Tools <cli>
 
 .. toctree::
    :caption: Other
