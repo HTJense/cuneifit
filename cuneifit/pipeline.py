@@ -325,7 +325,7 @@ class Pipeline:
 
         return F
 
-    def minimize(self, theta_start: jnp.ndarray, num_runs: int=1,
+    def minimize(self, theta_start: jnp.ndarray, num_runs: int = 1,
                  method: str = "adam", patience: int = 1,
                  max_steps: Optional[int] = None, start_spread: float = 0.0,
                  rng_key=None, rtol: float = 1e-2, atol: float = 1e-2,
@@ -355,9 +355,11 @@ class Pipeline:
             cov = jnp.linalg.inv(F)
             L = jnp.linalg.cholesky(cov)
             init_key, rng_key = jax.random.split(rng_key, 2)
-            gn = jax.random.normal(init_key, shape=(num_runs, theta_start.size))
+            gn = jax.random.normal(init_key,
+                                   shape=(num_runs, theta_start.size))
             for i in range(num_runs):
-                starting_points[i] = starting_points[i] + start_spread * (L @ gn[i])
+                starting_points[i] = (starting_points[i]
+                                      + start_spread * (L @ gn[i]))
 
         it_runs = range(num_runs)
         if num_runs > 1 and tqdm is not None:
@@ -389,7 +391,7 @@ class Pipeline:
 
                 delta_logp = best_lp - v
                 tol = rtol * jnp.abs(best_lp) + atol
-                
+
                 if v < best_lp:
                     best_lp = v
                     best = theta
@@ -418,7 +420,8 @@ class Pipeline:
 
                 if tbar is not None:
                     tbar.update()
-                    tbar.set_description(f"log-post = {v:.3f} / best = {best_lp:.3f}")
+                    tbar.set_description(f"log-post = {v:.3f} / "
+                                         f"best = {best_lp:.3f}")
 
             if tbar is not None:
                 tbar.close()
@@ -445,7 +448,7 @@ class Pipeline:
         if kernel_args is None:
             kernel_args = {}
         if tqdm is None:
-            tqdm = lambda x, **kwargs: x
+            tqdm = lambda x, **kwargs: x  # noqa: E731
 
         F = self.fisher(theta_start)
         M = jnp.linalg.inv(F)

@@ -107,14 +107,17 @@ def main(argv: list[str] | None = None) -> int:
         atol = min_args.get("atol", 1e-2)
         opt_args = min_args.get("args", {})
 
-        logp, thetas = pipeline.minimize(theta, num_runs=num_runs, method=method,
-                                         patience=patience, max_steps=max_steps,
-                                         start_spread=start_spread, rtol=rtol,
-                                         atol=atol, tqdm=tqdm, opt_args=opt_args)
+        logp, thetas = pipeline.minimize(
+            theta, num_runs=num_runs, method=method, patience=patience,
+            max_steps=max_steps, start_spread=start_spread, rtol=rtol,
+            atol=atol, tqdm=tqdm, opt_args=opt_args
+        )
 
         logp = np.asarray(logp)
         thetas = np.asarray(thetas)
-        np.savetxt(output + ".minima", np.c_[logp, thetas], header = "log-posterior " + " ".join(pipeline.parameters), fmt=["%.5f"] + ["%.5e"] * len(pipeline.parameters))
+        np.savetxt(output + ".minima", np.c_[logp, thetas],
+                   header="log-posterior " + " ".join(pipeline.parameters),
+                   fmt=["%.5f"] + ["%.5e"] * len(pipeline.parameters))
 
         theta = thetas[0]
 
