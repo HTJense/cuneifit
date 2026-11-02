@@ -28,6 +28,7 @@ Table of Contents
 
 .. toctree::
    :caption: Analysis Pipelines
+   :maxdepth: 2
 
    pipeline
    Analysis Functions <pipeline-functions>
