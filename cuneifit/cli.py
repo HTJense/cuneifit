@@ -111,8 +111,8 @@ def main(argv: list[str] | None = None) -> int:
         logp, thetas = pipeline.minimize(
             theta, num_runs=num_runs, method=method, patience=patience,
             min_steps=min_steps, max_steps=max_steps,
-             start_spread=start_spread, rtol=rtol, atol=atol, tqdm=tqdm,
-             opt_args=opt_args,
+            start_spread=start_spread, rtol=rtol, atol=atol, tqdm=tqdm,
+            opt_args=opt_args,
         )
 
         logp = np.asarray(logp)
