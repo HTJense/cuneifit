@@ -16,7 +16,6 @@ Table of Contents
 
    likelihood
    theory
-   pipeline
 
 .. toctree::
    :caption: Built-In Components
@@ -28,7 +27,16 @@ Table of Contents
    cosmopower
 
 .. toctree::
+   :caption: Analysis Pipelines
+   :maxdepth: 2
+
+   pipeline
+   Analysis Functions <pipeline-functions>
+   Automated Analysis Tools <cli>
+
+.. toctree::
    :caption: Other
    :maxdepth: 2
 
    cobaya
+   plots

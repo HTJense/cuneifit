@@ -1,9 +1,9 @@
-import numpy as np
-import sacc
 import os
 import jax.numpy as jnp
+import numpy as np
+import sacc
 
-from .config import config_from_file, config_locate_data
+from .config import load_config, resolve_data
 from .likelihood import GaussianLikelihood
 
 
@@ -33,16 +33,10 @@ MFLIKE_DATA_TYPES = {
 
 
 class MultiFrequency(GaussianLikelihood):
-    def __init__(self, config: str | dict):
-        if type(config) is str:
-            self.config = config_from_file(config)
-        elif type(config) is dict:
-            self.config = config
-        else:
-            raise TypeError("Configuration should be string (filename) or "
-                            f"dictionary, but was given {type(config)}.")
+    def __init__(self, config: str | dict | None = None, **kwargs):
+        self.config = load_config(config, **kwargs)
 
-        data_path = config_locate_data(self.config["data_folder"])
+        data_path = resolve_data(self.config["data_folder"])
         s = sacc.Sacc.load_fits(os.path.join(data_path,
                                              self.config["input_file"]))
 
@@ -181,8 +175,16 @@ class MultiFrequency(GaussianLikelihood):
         spec = jnp.stack([
             cls[xy][self.ells] for xy in self.requested_cls
         ])
-        spec = (jnp.broadcast_to(spec[:, :, None, None], foregrounds.shape)
-                + foregrounds)
+        spec = jnp.broadcast_to(spec[:, :, None, None],
+                                (*spec.shape, len(self.experiments),
+                                 len(self.experiments)))
+
+        for i, cl in enumerate(self.requested_cls):
+            for j, exp1 in enumerate(self.experiments):
+                for k, exp2 in enumerate(self.experiments):
+                    spec = spec.at[i, :, j, k].add(
+                        foregrounds[cl, exp1, exp2][self.ells]
+                    )
 
         return self.calibrate_spectra(spec, theta)
 
@@ -228,16 +230,10 @@ class MultiFrequency(GaussianLikelihood):
 
 
 class CMBLite(GaussianLikelihood):
-    def __init__(self, config: str | dict):
-        if type(config) is str:
-            self.config = config_from_file(config)
-        elif type(config) is dict:
-            self.config = config
-        else:
-            raise TypeError("Configuration should be string (filename) or "
-                            f"dictionary, but was given {type(config)}.")
+    def __init__(self, config: str | dict | None = None, **kwargs):
+        self.config = load_config(config, **kwargs)
 
-        data_path = config_locate_data(self.config["data_folder"])
+        data_path = resolve_data(self.config["data_folder"])
         s = sacc.Sacc.load_fits(os.path.join(data_path,
                                              self.config["input_file"]))
 
@@ -349,8 +345,8 @@ class CMBLite(GaussianLikelihood):
 
 
 class CMBNull(MultiFrequency):
-    def __init__(self, config: str | dict):
-        super().__init__(config)
+    def __init__(self, config: str | dict | None, **kwargs):
+        super().__init__(config, **kwargs)
         self.n_ig = self.config["n_ig"]
 
         self.inv_cov = jnp.linalg.inv(self.covariance)

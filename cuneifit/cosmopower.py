@@ -1,4 +1,6 @@
 from jax import numpy as jnp
+
+from .config import load_config
 from .theory import Theory
 
 T_CMB = 2.72548e6
@@ -60,7 +62,15 @@ def _emulators_to_jax(parser, desired=["tt", "te", "ee"]):
 class Cosmopower(Theory):
     """A theory object capable of interfacing with Cosmopower-JAX.
     """
-    def __init__(self, parser, desired=["tt", "te", "ee"]):
+    def __init__(self, config: str | dict | None = None, **kwargs):
+        import cosmopower as cp
+
+        self.config = load_config(config, **kwargs)
+
+        parser = cp.YAMLParser(self.config["yaml_file"],
+                               root_dir=self.config.get("root_dir", None))
+        desired = self.config.get("desired", ["tt", "te", "ee"])
+
         self.parameters = []
         self.emulators = _emulators_to_jax(parser, desired=desired)
         for xy in self.emulators:

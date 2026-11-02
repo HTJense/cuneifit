@@ -4,21 +4,15 @@ import os
 
 import jax.numpy as jnp
 
-from .config import config_from_file, config_locate_data
+from .config import load_config, resolve_data
 from .theory import Theory
 
 
 class LensingCorrections(Theory):
-    def __init__(self, config: str | dict):
-        if type(config) is str:
-            self.config = config_from_file(config)
-        elif type(config) is dict:
-            self.config = config
-        else:
-            raise TypeError("Configuration should be a string (filename) or "
-                            f"dictionary, but was given {type(config)}.")
+    def __init__(self, config: str | dict | None = None, **kwargs):
+        self.config = load_config(config, **kwargs)
 
-        data_path = config_locate_data(self.config["data_folder"])
+        data_path = resolve_data(self.config["data_folder"])
 
         fiducial = sacc.Sacc.load_fits(
             os.path.join(data_path, self.config["fiducial_file"])

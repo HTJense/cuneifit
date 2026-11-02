@@ -1,11 +1,17 @@
 import jax
+from jax.sharding import NamedSharding, PartitionSpec
 import jax.numpy as jnp
 import jax.scipy as jsc
-from typing import Callable
-import optax
+import logging
+import numpy as np
+from typing import Callable, Optional
+
 from .likelihood import Likelihood, GaussianLikelihood
 from .prior import Prior
 from .theory import Theory
+
+
+logger = logging.getLogger(__name__)
 
 
 class Pipeline:
@@ -320,47 +326,356 @@ class Pipeline:
 
         return F
 
-    def minimize(self, theta_start: jnp.ndarray, max_steps: int,
-                 tqdm: Callable = lambda x: x, **kwargs) -> list[jnp.ndarray]:
-        """ Minimize the log-posterior function using the Adam gradient descent
-        sampler.
+    def minimize(self, theta_start: jnp.ndarray, num_runs: int = 1,
+                 method: str = "adam", patience: int = 1,
+                 min_steps: Optional[int] = None,
+                 max_steps: Optional[int] = None, start_spread: float = 0.0,
+                 rng_key=None, rtol: float = 0.0, atol: float = 1e-2,
+                 tqdm=None, opt_args=None) -> jnp.ndarray | list[jnp.ndarray]:
+        """ Minimize the log-posterior function using an optax algorithm (e.g.
+        Adam).
 
         Parameters
         ----------
         theta_start : jnp.ndarray
-            An initial guess for the best-fit. Starts the sampling from this
-            location.
-        max_steps : int
-            Maximum amount of steps for the minimizer.
-        tqdm : Callable
-            If provided, use this function as the tqdm style progress bar.
+            The starting point of the minimizer(s). By default, the first
+            minimizer will start at this point, while all other minimzers will
+            start at a random point near this starting point (controlled by
+            the :code:`start_spread` parameter).
+        num_runs : int
+            How many minimzers to run. Defaults to only one runner.
+        method : str
+            The method to use. Must be a valid
+            `optax <https://optax.readthedocs.io/en/latest/>`_ class. Defaults
+            to use the Adam optimizer.
+        min_steps : int | None
+            The minimum number of steps to run each minimizer for. If set to
+            some positive number, each minimizer will run for at least this
+            many steps.
+        max_steps : int | None
+            The maximum number of steps to run each minimizer for. If set to
+            :code:`None`, the minimizer will run until the log-posterior stops
+            improving (see :code:`patience` parameter).
+        start_spread : float
+            If set to a number > 0, will start each minimizer after the first
+            from a region around the starting point given by the fisher matrix
+            around the starting point. The start_spread parameter scales the
+            sampling range. Can help converge on a slightly better minimum.
+        rng_key
+            If given, a random number generator for :code:`jax`. Defaults to a
+            system random seed.
+        patience : int
+            How many steps to wait before closing out of the loop if the
+            log-posterior does not improve. The minimizer will stop if the
+            log-posterior does not improve the best-fit beyond
+            :math:`a + r |\\log(p)|_{\\rm best}` for :code:`patience` steps in
+            a row.
+        rtol : float
+            The relative tolerance of the stopping criterion.
+        atol : float
+            The absolute tolerance of the stopping criterion.
+        tqdm
+        opt_args : dict
+            Any arguments that get passed to the :code:`optax` optimizer class.
         """
-        # Find the best-fitting log-posterior.
-        optimizer = optax.adam(**kwargs)
-        state = optimizer.init(theta_start)
+        import optax
 
+        if num_runs < 1:
+            raise ValueError("num_runs must be at least 1.")
+        if rng_key is None:
+            import secrets
+            rng_key = jax.random.key(secrets.randbits(32))
+        if opt_args is None:
+            opt_args = {}
+        if min_steps is None:
+            min_steps = 1
+        if max_steps is None:
+            max_steps = jnp.inf
+
+        assert patience >= 1, "Patience should be at least 1."
+        assert max_steps > min_steps, ("Maximum number of steps should be "
+                                       "higher than minimum number.")
+
+        starting_points = [theta_start] * num_runs
+
+        if start_spread > 0.0:
+            F = self.fisher(theta_start)
+            cov = jnp.linalg.inv(F)
+            L = jnp.linalg.cholesky(cov)
+            init_key, rng_key = jax.random.split(rng_key, 2)
+            gn = jax.random.normal(init_key,
+                                   shape=(num_runs-1, theta_start.size))
+            for i in range(1, num_runs):
+                starting_points[i] = (starting_points[i]
+                                      + start_spread * (L @ gn[i-1]))
+
+        it_runs = range(num_runs)
+        if num_runs > 1 and tqdm is not None:
+            it_runs = tqdm(it_runs, desc="Minimizers")
+
+        minima = []
         vgrad = jax.jit(jax.value_and_grad(
             lambda theta: -self.logposterior(theta)
         ))
 
-        chain = [theta_start]
-        theta = theta_start.copy()
+        for i in it_runs:
+            theta = starting_points[i]
 
-        for _ in tqdm(range(max_steps)):
-            v, g = vgrad(theta)
-            updates, state = optimizer.update(g, state, theta)
-            theta = optax.apply_updates(theta, updates)
+            try:
+                optimizer = getattr(optax, method)(**opt_args)
+            except AttributeError:
+                raise RuntimeError(f"Optimizer method {method} unknown. "
+                                   "Please check the optax documentation for "
+                                   "a valid method.")
+            state = optimizer.init(theta)
 
-            if not jnp.all(jnp.isfinite(theta)):
-                print("Non-finite theta.")
-                break
-            if not jnp.isfinite(v):
-                print("Non-finite log-posterior.")
-                break
-            if not jnp.all(jnp.isfinite(g)):
-                print("Non-finite gradient.")
-                break
+            best = theta
+            best_lp = -self.logposterior(theta)
+            wait = 0
+            steps = 0
 
-            chain.append(theta)
+            tbar = None
+            if tqdm is not None:
+                tbar = tqdm(total=max_steps, leave=False)
 
-        return chain
+            while True:
+                steps += 1
+                v, g = vgrad(theta)
+
+                if not jnp.isfinite(v):
+                    logger.debug("Non-finite log-posterior.")
+                    break
+                if not jnp.all(jnp.isfinite(g)):
+                    logger.debug("Non-finite gradient.")
+                    break
+
+                delta_logp = best_lp - v
+                tol = rtol * jnp.abs(best_lp) + atol
+
+                if v < best_lp:
+                    best_lp = v
+                    best = theta
+
+                if delta_logp > tol:
+                    wait = 0
+                else:
+                    wait += 1
+
+                if steps >= min_steps:
+                    if wait >= patience or steps >= max_steps:
+                        logger.debug(f"Best-fit found: {best}.")
+                        break
+
+                updates, state = optimizer.update(g, state, theta)
+                theta = optax.apply_updates(theta, updates)
+
+                if not jnp.all(jnp.isfinite(theta)):
+                    logger.debug("Non-finite theta.")
+                    break
+
+                if tbar is not None:
+                    tbar.update()
+                    tbar.set_description(f"log-post = {v:.3f} / "
+                                         f"best = {best_lp:.3f}")
+
+            if tbar is not None:
+                tbar.close()
+
+            minima.append((best_lp, best))
+
+        thetas = [theta for _, theta in sorted(minima, key=lambda x: x[0])]
+        logpost = [logp for logp, _ in sorted(minima, key=lambda x: x[0])]
+        return logpost, thetas
+
+    def sample(self, theta_start: jnp.ndarray, num_steps: int,
+               num_samplers: int = 1, method: str = "nuts", rng_key=None,
+               kernel_args=None, warmup_steps: int = 0,
+               start_spread: float = 0.0,
+               tqdm=None
+               ) -> (list, list):
+        """Sample a chain using a BlackJAX sampler (e.g. NUTS or HMC).
+
+        Parameters
+        ----------
+        theta_start : jnp.ndarray
+            The starting point of the samplers.
+        warmup_steps : int
+            How many warm-up steps are to be used to condition the sampler.
+        num_steps : int
+            How many steps each sampler should take.
+        num_samplers : int
+            The number of samplers to be run. If this number is bigger than 1
+            and it does not divide the number of devices, this number gets
+            increased until it does, otherwise JAX will not be able to shard
+            this.
+        start_spread : float
+            If set to a number > 0, will start each sampler from a region
+            around the starting point given by the fisher matrix at the
+            starting point. The start_spread parameter scales the initial
+            sampling range. Can help explore the local region better.
+        method : str
+            A `blackjax <https://blackjax-devs.github.io/blackjax/>`_ sampler
+            class to be used. Defaults to use the No U-Turn Sampler (NUTS).
+        kernel_args : dict
+            If given and no warmup is used, use these parameters for
+            initialization. See the :code:`blackjax` documentation for more
+            information.
+        rng_key
+        tqdm
+        """
+        import blackjax
+
+        if rng_key is None:
+            import secrets
+            rng_key = jax.random.key(secrets.randbits(32))
+        if kernel_args is None:
+            kernel_args = {}
+        if tqdm is None:
+            tqdm = lambda x, **kwargs: x  # noqa: E731
+
+        F = self.fisher(theta_start)
+        M = jnp.linalg.inv(F)
+
+        logdensities = []
+        positions = []
+
+        if warmup_steps > 0:
+            # Do a warmup run.
+            logger.info(f"Running {warmup_steps} warm-up steps.")
+
+            warmup = blackjax.window_adaptation(
+                getattr(blackjax, method), self.logposterior,
+                initial_inverse_mass_matrix=M, is_mass_matrix_diagonal=False,
+                **kernel_args
+            )
+
+            rng_key, warmup_key = jax.random.split(rng_key, 2)
+            with blackjax.progress_bar(label="Warm-up"):
+                (state, parameters), _ = warmup.run(warmup_key, theta_start,
+                                                    num_steps=warmup_steps)
+
+            M = jnp.asarray(parameters["inverse_mass_matrix"])
+            sampler = getattr(blackjax, method)(self.logposterior,
+                                                **parameters)
+        else:
+            # Don't do a warmup run - the user may provide some settings.
+            sampler = getattr(blackjax, method)(self.logposterior, M,
+                                                **kernel_args)
+            state = sampler.init(theta_start)
+
+        if num_samplers == 1:
+            # Run only a single chain.
+            logger.info(f"Starting single {method} sampler.")
+
+            if start_spread > 0.0:
+                logger.info(f"Giving sampler {start_spread} sigma random "
+                            "offset.")
+                L = jnp.linalg.cholesky(M)
+                init_key, rng_key = jax.random.split(rng_key, 2)
+                gn = jax.random.normal(init_key, shape=(state.position.size,))
+                theta_start = state.position + start_spread * (L @ gn)
+                state = sampler.init(theta_start)
+
+            step = jax.jit(sampler.step)
+
+            for i in tqdm(range(num_steps), desc="Sampling"):
+                key = jax.random.fold_in(rng_key, i)
+                state, _ = step(key, state)
+                logdensities.append(float(state.logdensity))
+                positions.append(jnp.asarray(state.position))
+
+            logdensities = np.asarray([logdensities])
+            positions = np.asarray([positions])
+        else:
+            # Run multiple chains in parallel using JAX sharding.
+            devices = jax.devices()
+            n_devices = len(devices)
+            if num_samplers % n_devices != 0:
+                new_samplers = (
+                    num_samplers + (n_devices - num_samplers % n_devices)
+                )
+
+                logger.warning(
+                    f"The number of chain samplers = {num_samplers} must be "
+                    "divisible by the number of available devices = "
+                    f"{n_devices}. I am increasing the number of samplers to "
+                    f"{new_samplers} to make it fit."
+                )
+
+                num_samplers = new_samplers
+
+            logger.info(f"Starting {num_samplers} {method} samplers across "
+                        f"{n_devices} devices.")
+
+            # Create starting states.
+            if start_spread > 0.0:
+                logger.info(f"Giving samplers {start_spread} sigma random "
+                            "offset.")
+                L = jnp.linalg.cholesky(M)
+                init_key, rng_key = jax.random.split(rng_key, 2)
+                gn = jax.random.normal(
+                    init_key, shape=(num_samplers, state.position.size)
+                )
+                theta_start = state.position + start_spread * (gn @ L.T)
+                states = [
+                    sampler.init(theta_start[i]) for i in range(num_samplers)
+                ]
+            else:
+                states = [
+                    sampler.init(state.position) for _ in range(num_samplers)
+                ]
+
+            states = jax.tree.map(lambda *xs: jnp.stack(xs), *states)
+            chain_keys = jax.random.split(rng_key, num_samplers)
+
+            # Initialize sharding setup.
+            mesh = jax.make_mesh((n_devices,), ("chain",))
+            chain_sharding = NamedSharding(mesh, PartitionSpec("chain"))
+            chain_keys = jax.device_put(chain_keys, chain_sharding)
+            states = jax.tree.map(lambda x: jax.device_put(x, chain_sharding),
+                                  states)
+
+            # The running function.
+            def run_loop(key, kernel, state, num_samples):
+                @jax.jit
+                def step(state, key):
+                    state, _ = kernel(key, state)
+                    return state, (state.logdensity, state.position)
+
+                sample_keys = jax.random.split(key, num_samples)
+                _, states = jax.lax.scan(step, state, sample_keys)
+                return states
+
+            def shard_chains(keys, local_states):
+                return jax.vmap(
+                    lambda k, s: run_loop(k, sampler.step, s, num_steps),
+                    in_axes=(0, 0),
+                )(keys, local_states)
+
+            state_spec = jax.tree.map(
+                lambda _: PartitionSpec("chain"), states
+            )
+
+            # The actual sharder: it maps from (starting) states to
+            # an output array of [logp, theta] per chain.
+            parallel_sampling = jax.jit(
+                jax.shard_map(
+                    shard_chains, mesh=mesh,
+                    in_specs=(PartitionSpec("chain"), state_spec),
+                    out_specs=(
+                        PartitionSpec("chain", None),
+                        PartitionSpec("chain", None, None),
+                    ),
+                    check_vma=False,
+                )
+            )
+
+            # Sampling!
+            with blackjax.progress_bar(label="Sampling"):
+                logdensities, positions = parallel_sampling(chain_keys, states)
+                positions.block_until_ready()
+
+            logdensities = np.asarray(logdensities)
+            positions = np.asarray(positions)
+
+        return logdensities, positions

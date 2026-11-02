@@ -1,3 +1,7 @@
+data_folder: ACTDR6MFLike/v1.0
+input_file: dr6_data.fits
+lmax: 9000
+
 top_hat_band:
 
 beam_profile: 

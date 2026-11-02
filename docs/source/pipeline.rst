@@ -133,6 +133,7 @@ compiled and stored internally, re-using them the next function call.
 
 .. autoclass:: cuneifit.pipeline.Pipeline
     :members:
+    :exclude-members: minimize, sample
 
 
 Prior Contributions

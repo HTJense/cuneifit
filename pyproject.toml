@@ -36,6 +36,9 @@ Issues = "https://github.com/HTJense/cuneifit/issues"
 [project.optional-dependencies]
 cobaya = ["cobaya"]
 
+[project.scripts]
+cuneifit = "cuneifit.cli:main"
+
 [build-system]
 requires = ["setuptools >= 77.0.3"]
 build-backend = "setuptools.build_meta"
