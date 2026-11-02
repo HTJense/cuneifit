@@ -54,11 +54,15 @@ def main(argv: list[str] | None = None) -> int:
     # Build the pipeline.
     components = []
     component_config = run_config["components"]
-    for name, conf in component_config.items():
-        if hasattr(cuneifit, name):
-            comp = getattr(cuneifit, name)(conf)
-            components.append(comp)
-            run_config["components"][name] = comp.config
+    for i, entry in enumerate(component_config):
+        for name, conf in entry.items():
+            try:
+                comp = getattr(cuneifit, name)(conf)
+                components.append(comp)
+                run_config["components"][i][name] = comp.config
+            except AttributeError:
+                raise RuntimeError("Failed to find cuneifit component "
+                                   f"{name}.")
 
     config.save_config(output + ".config.yaml", run_config)
 
@@ -95,6 +99,13 @@ def main(argv: list[str] | None = None) -> int:
         pipeline.restrict(params_fix)
 
     logger.info(pipeline.parameters)
+
+    # See if all the parameters are given at the start.
+    params_missing = [
+        par for par in pipeline.parameters if par not in run_config["start"]
+    ]
+    if len(params_missing) > 0:
+        raise RuntimeError(f"Missing values for parameters {params_missing}.")
 
     theta = pipeline.params_to_vec(run_config["start"])
     bestfit = None

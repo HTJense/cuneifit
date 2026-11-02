@@ -40,7 +40,7 @@ def _load_defaults(loader, node):
         except StopIteration:
             raise RuntimeError(f"File {dfile} not found in {folder}.")
 
-        loaded_defaults |= load_config(df)
+        loaded_defaults |= _read_yaml(df)
 
     loader.current_folder = folder
     return loaded_defaults
@@ -95,22 +95,23 @@ def resolve_config(filename: str) -> str:
     raise OSError(errstr)
 
 
+def _read_yaml(filename: str):
+    with open(filename) as fp:
+        text = fp.read()
+
+    DefaultsLoader.current_folder = os.path.dirname(filename)
+    DefaultsLoader.yaml_root_name = (
+        os.path.splitext(os.path.basename(filename))[0]
+    )
+
+    return yaml.load(text, DefaultsLoader)
+
+
 # Load a configuration file.
 def load_config(config: str | dict | None, **kwargs) -> dict:
     if type(config) is str:
         config = resolve_config(config)
-
-        with open(config) as fp:
-            text = fp.read()
-
-        DefaultsLoader.current_folder = os.path.dirname(config)
-        DefaultsLoader.yaml_root_name = (
-            os.path.splitext(os.path.basename(config))[0]
-        )
-        config = yaml.load(text, DefaultsLoader)
-
-        # Prevent infinite loop.
-        config.pop("preset", None)
+        config = _read_yaml(config)
     elif config is None:
         config = {}
 
