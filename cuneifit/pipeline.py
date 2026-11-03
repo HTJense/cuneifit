@@ -559,7 +559,7 @@ class Pipeline:
             tqdm = lambda x, **kwargs: x  # noqa: E731
 
         F = self.fisher(theta_start)
-        M = jnp.linalg.inv(F)
+        Minv = jnp.linalg.inv(F)
 
         if not hasattr(blackjax, method):
             raise RuntimeError(f"Sampling method {method} not found in"
@@ -574,8 +574,8 @@ class Pipeline:
 
             warmup = blackjax.window_adaptation(
                 getattr(blackjax, method), self.logposterior,
-                initial_inverse_mass_matrix=M, is_mass_matrix_diagonal=False,
-                **kernel_args
+                initial_inverse_mass_matrix=Minv,
+                is_mass_matrix_diagonal=False,
             )
 
             rng_key, warmup_key = jax.random.split(rng_key, 2)
@@ -583,12 +583,12 @@ class Pipeline:
                 (state, parameters), _ = warmup.run(warmup_key, theta_start,
                                                     num_steps=warmup_steps)
 
-            M = jnp.asarray(parameters["inverse_mass_matrix"])
+            Minv = jnp.asarray(parameters["inverse_mass_matrix"])
             sampler = getattr(blackjax, method)(self.logposterior,
                                                 **parameters)
         else:
             # Don't do a warmup run - the user may provide some settings.
-            sampler = getattr(blackjax, method)(self.logposterior, M,
+            sampler = getattr(blackjax, method)(self.logposterior, Minv,
                                                 **kernel_args)
             state = sampler.init(theta_start)
 
@@ -599,7 +599,7 @@ class Pipeline:
             if start_spread > 0.0:
                 logger.info(f"Giving sampler {start_spread} sigma random "
                             "offset.")
-                L = jnp.linalg.cholesky(M)
+                L = jnp.linalg.cholesky(Minv)
                 init_key, rng_key = jax.random.split(rng_key, 2)
                 gn = jax.random.normal(init_key, shape=(state.position.size,))
                 theta_start = state.position + start_spread * (L @ gn)
@@ -640,7 +640,7 @@ class Pipeline:
             if start_spread > 0.0:
                 logger.info(f"Giving samplers {start_spread} sigma random "
                             "offset.")
-                L = jnp.linalg.cholesky(M)
+                L = jnp.linalg.cholesky(Minv)
                 init_key, rng_key = jax.random.split(rng_key, 2)
                 gn = jax.random.normal(
                     init_key, shape=(num_samplers, state.position.size)
