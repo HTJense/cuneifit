@@ -517,7 +517,7 @@ class Pipeline:
                kernel_args=None, warmup_steps: int = 0,
                start_spread: float = 0.0,
                tqdm=None
-               ) -> (list, list):
+               ) -> tuple[np.ndarray, np.ndarray]:
         """Sample a chain using a BlackJAX sampler (e.g. NUTS or HMC).
 
         Parameters
@@ -588,8 +588,10 @@ class Pipeline:
                                                 **parameters)
         else:
             # Don't do a warmup run - the user may provide some settings.
-            sampler = getattr(blackjax, method)(self.logposterior, Minv,
-                                                **kernel_args)
+            sampler = getattr(blackjax, method)(
+                self.logposterior, inverse_mass_matrix=Minv,
+                **kernel_args
+            )
             state = sampler.init(theta_start)
 
         if num_samplers == 1:
