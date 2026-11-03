@@ -16,7 +16,7 @@ class MultiFrequency(Likelihood):
 
     def initialize(self):
         self.like = cmb_like.MultiFrequency(self.like_config)
-        self.theory = fg.BandpowerForegrounds(self.fg_config, self.like)
+        self.theory = fg.BandpowerForegrounds(self.fg_config)
 
     def get_requirements(self):
         reqs = {
@@ -73,7 +73,7 @@ class Moped(Likelihood):
 
     def initialize(self):
         self.like = moped.Moped(self.like_config)
-        self.theory = fg.BandpowerForegrounds(self.fg_config, self.like)
+        self.theory = fg.BandpowerForegrounds(self.fg_config)
 
     def get_requirements(self):
         reqs = {
