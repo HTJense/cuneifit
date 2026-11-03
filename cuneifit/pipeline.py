@@ -424,8 +424,8 @@ class Pipeline:
 
         minima = []
 
-        theta_from_z = lambda z: theta_start + L @ z
-        loss = lambda z: -self.logposterior(theta_from_z(z))
+        theta_from_z = lambda z: theta_start + L @ z  # noqa: E731
+        loss = lambda z: -self.logposterior(theta_from_z(z))  # noqa: E731
 
         for i in it_runs:
             z = starting_points[i]
@@ -484,11 +484,12 @@ class Pipeline:
                         logger.debug(f"Best-fit found: {best}.")
                         break
                     if gn <= gtol:
-                        logger.debug(f"Gradient converged.")
+                        logger.debug("Gradient converged.")
                         break
 
                 if is_lbfgs:
-                    updates, state = optimizer.update(g, state, z, value=v, grad=g, value_fn=loss)
+                    updates, state = optimizer.update(g, state, z, value=v,
+                                                      grad=g, value_fn=loss)
                 else:
                     updates, state = optimizer.update(g, state, z)
                 z = optax.apply_updates(z, updates)
