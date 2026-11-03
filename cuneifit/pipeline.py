@@ -331,7 +331,8 @@ class Pipeline:
                  min_steps: Optional[int] = None,
                  max_steps: Optional[int] = None, start_spread: float = 0.0,
                  rng_key=None, rtol: float = 0.0, atol: float = 1e-2,
-                 tqdm=None, opt_args=None) -> jnp.ndarray | list[jnp.ndarray]:
+                 gtol: float = 0.0, tqdm=None, opt_args=None
+                 ) -> jnp.ndarray | list[jnp.ndarray]:
         """ Minimize the log-posterior function using an optax algorithm (e.g.
         Adam).
 
@@ -374,6 +375,8 @@ class Pipeline:
             The relative tolerance of the stopping criterion.
         atol : float
             The absolute tolerance of the stopping criterion.
+        gtol : float
+            The tolerance on the gradient for the stopping criterion.
         tqdm
         opt_args : dict
             Any arguments that get passed to the :code:`optax` optimizer class.
@@ -396,30 +399,36 @@ class Pipeline:
         assert max_steps > min_steps, ("Maximum number of steps should be "
                                        "higher than minimum number.")
 
-        starting_points = [theta_start] * num_runs
+        starting_points = [jnp.zeros_like(theta_start)] * num_runs
+
+        F = self.fisher(theta_start)
+        # Regularized inversion.
+        F = (F + F.T) / 2.
+        lam, vec = jnp.linalg.eigh(F)
+        lam = jnp.maximum(lam, 1e-8 * jnp.max(lam))
+        L = vec / jnp.sqrt(lam)[None, :]
 
         if start_spread > 0.0:
-            F = self.fisher(theta_start)
-            cov = jnp.linalg.inv(F)
-            L = jnp.linalg.cholesky(cov)
             init_key, rng_key = jax.random.split(rng_key, 2)
             gn = jax.random.normal(init_key,
                                    shape=(num_runs-1, theta_start.size))
             for i in range(1, num_runs):
                 starting_points[i] = (starting_points[i]
-                                      + start_spread * (L @ gn[i-1]))
+                                      + start_spread * gn[i-1])
 
         it_runs = range(num_runs)
         if num_runs > 1 and tqdm is not None:
             it_runs = tqdm(it_runs, desc="Minimizers")
 
+        is_lbfgs = (method == "lbfgs")
+
         minima = []
-        vgrad = jax.jit(jax.value_and_grad(
-            lambda theta: -self.logposterior(theta)
-        ))
+
+        theta_from_z = lambda z: theta_start + L @ z
+        loss = lambda z: -self.logposterior(theta_from_z(z))
 
         for i in it_runs:
-            theta = starting_points[i]
+            z = starting_points[i]
 
             try:
                 optimizer = getattr(optax, method)(**opt_args)
@@ -427,10 +436,15 @@ class Pipeline:
                 raise RuntimeError(f"Optimizer method {method} unknown. "
                                    "Please check the optax documentation for "
                                    "a valid method.")
-            state = optimizer.init(theta)
+            state = optimizer.init(z)
 
-            best = theta
-            best_lp = -self.logposterior(theta)
+            if is_lbfgs:
+                value_and_grad = jax.jit(optax.value_and_grad_from_state(loss))
+            else:
+                value_and_grad = jax.jit(jax.value_and_grad(loss))
+
+            best = z
+            best_lp = loss(best)
             wait = 0
             steps = 0
 
@@ -440,7 +454,10 @@ class Pipeline:
 
             while True:
                 steps += 1
-                v, g = vgrad(theta)
+                if is_lbfgs:
+                    v, g = value_and_grad(z, state=state)
+                else:
+                    v, g = value_and_grad(z)
 
                 if not jnp.isfinite(v):
                     logger.debug("Non-finite log-posterior.")
@@ -451,10 +468,11 @@ class Pipeline:
 
                 delta_logp = best_lp - v
                 tol = rtol * jnp.abs(best_lp) + atol
+                gn = jnp.linalg.norm(g, ord=jnp.inf)
 
                 if v < best_lp:
                     best_lp = v
-                    best = theta
+                    best = z
 
                 if delta_logp > tol:
                     wait = 0
@@ -465,11 +483,17 @@ class Pipeline:
                     if wait >= patience or steps >= max_steps:
                         logger.debug(f"Best-fit found: {best}.")
                         break
+                    if gn <= gtol:
+                        logger.debug(f"Gradient converged.")
+                        break
 
-                updates, state = optimizer.update(g, state, theta)
-                theta = optax.apply_updates(theta, updates)
+                if is_lbfgs:
+                    updates, state = optimizer.update(g, state, z, value=v, grad=g, value_fn=loss)
+                else:
+                    updates, state = optimizer.update(g, state, z)
+                z = optax.apply_updates(z, updates)
 
-                if not jnp.all(jnp.isfinite(theta)):
+                if not jnp.all(jnp.isfinite(z)):
                     logger.debug("Non-finite theta.")
                     break
 
@@ -481,7 +505,7 @@ class Pipeline:
             if tbar is not None:
                 tbar.close()
 
-            minima.append((best_lp, best))
+            minima.append((best_lp, theta_from_z(best)))
 
         thetas = [theta for _, theta in sorted(minima, key=lambda x: x[0])]
         logpost = [logp for logp, _ in sorted(minima, key=lambda x: x[0])]
@@ -535,7 +559,7 @@ class Pipeline:
 
         F = self.fisher(theta_start)
         M = jnp.linalg.inv(F)
-        
+
         if not hasattr(blackjax, method):
             raise RuntimeError(f"Sampling method {method} not found in"
                                "blackjax.")

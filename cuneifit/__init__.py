@@ -7,6 +7,8 @@ from .moped import Moped  # noqa: F401
 from .pipeline import Pipeline  # noqa: F401
 from .prior import Prior  # noqa: F401
 
+from . import plots  # noqa: F401
+
 
 def get_cobaya_class():
     from .cobaya import MultiFrequency_cobaya
