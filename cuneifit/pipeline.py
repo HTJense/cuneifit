@@ -512,10 +512,11 @@ class Pipeline:
         logpost = [logp for logp, _ in sorted(minima, key=lambda x: x[0])]
         return logpost, thetas
 
-    def sample(self, theta_start: jnp.ndarray, num_steps: int,
+    def sample(self, theta_start: jnp.ndarray, num_steps: int = None,
+               check_every: int = None, converge_target: float = 0.05,
                num_samplers: int = 1, method: str = "nuts", rng_key=None,
                kernel_args=None, warmup_steps: int = 0,
-               start_spread: float = 0.0,
+               start_spread: float = 0.0, single_splits: int = 4,
                tqdm=None
                ) -> tuple[np.ndarray, np.ndarray]:
         """Sample a chain using a BlackJAX sampler (e.g. NUTS or HMC).
@@ -527,12 +528,20 @@ class Pipeline:
         warmup_steps : int
             How many warm-up steps are to be used to condition the sampler.
         num_steps : int
-            How many steps each sampler should take.
+            How many steps each sampler should take. If not set, keeps running
+            until convergence target reached.
+        check_every : int
+            How often we should check for convergence.
+        converge_target : float
+            The target for the convergence statistic R-1.
         num_samplers : int
             The number of samplers to be run. If this number is bigger than 1
             and it does not divide the number of devices, this number gets
             increased until it does, otherwise JAX will not be able to shard
             this.
+        single_splits : int
+            If running only a single chain, split the chain into this many
+            sub-chains, and compute convergence across these.
         start_spread : float
             If set to a number > 0, will start each sampler from a region
             around the starting point given by the fisher matrix at the
@@ -557,6 +566,17 @@ class Pipeline:
             kernel_args = {}
         if tqdm is None:
             tqdm = lambda x, **kwargs: x  # noqa: E731
+        if check_every is None:
+            check_every = 10 * len(self.parameters)
+        if num_steps is None:
+            num_steps = jnp.inf
+
+        assert converge_target >= 0.0, ("Convergence target must be "
+                                        "non-negative.")
+        assert num_samplers > 1 or single_splits > 1, (
+            "Must split single chain into at least 2 parts "
+            "(single_splits > 1)."
+        )
 
         F = self.fisher(theta_start)
         Minv = jnp.linalg.inv(F)
@@ -594,6 +614,21 @@ class Pipeline:
             )
             state = sampler.init(theta_start)
 
+        # Function to compute the Gelman-Rubin R-1 statistic.
+        def compute_Rminus1(samples):
+            means = np.array([np.mean(x, axis=0) for x in samples])
+            covs = np.array([np.cov(x.T) for x in samples])
+
+            mean_of_covs = np.average(covs, axis=0)
+            cov_of_means = np.atleast_2d(np.cov(means.T))
+
+            d = np.sqrt(np.diag(cov_of_means))
+            corr_of_means = cov_of_means / (d[:, None] * d[None, :])
+            nmean_of_covs = mean_of_covs / (d[:, None] * d[None, :])
+            Linv = np.linalg.cholesky(np.linalg.inv(nmean_of_covs))
+            lam = np.linalg.eigvalsh(Linv @ corr_of_means @ Linv.T)
+            return max(np.abs(lam))
+
         if num_samplers == 1:
             # Run only a single chain.
             logger.info(f"Starting single {method} sampler.")
@@ -609,11 +644,34 @@ class Pipeline:
 
             step = jax.jit(sampler.step)
 
-            for i in tqdm(range(num_steps), desc="Sampling"):
-                key = jax.random.fold_in(rng_key, i)
-                state, _ = step(key, state)
-                logdensities.append(float(state.logdensity))
-                positions.append(jnp.asarray(state.position))
+            total_steps = 0
+            done = False
+
+            while not done:
+                for _ in tqdm(range(check_every), desc="Sampling",
+                              leave=False):
+                    key = jax.random.fold_in(rng_key, total_steps)
+                    state, _ = step(key, state)
+                    logdensities.append(float(state.logdensity))
+                    positions.append(jnp.asarray(state.position))
+                    total_steps += 1
+
+                chain = np.asarray(positions)
+                N = len(chain) // (single_splits + 1)
+                chains = [
+                    chain[i*N:(i+1)*N] for i in range(1, single_splits+1)
+                ]
+                Rminus1 = compute_Rminus1(chains)
+                logger.info(
+                    f"Convergence check at {total_steps} samples: "
+                    f"R-1 = {Rminus1:.3f}"
+                )
+                if Rminus1 <= converge_target:
+                    logger.info("Converged.")
+                    done = True
+                if total_steps >= num_steps:
+                    logger.info("Maximum step count reached.")
+                    done = True
 
             logdensities = np.asarray([logdensities])
             positions = np.asarray([positions])
@@ -659,54 +717,98 @@ class Pipeline:
             states = jax.tree.map(lambda *xs: jnp.stack(xs), *states)
             chain_keys = jax.random.split(rng_key, num_samplers)
 
-            # Initialize sharding setup.
-            mesh = jax.make_mesh((n_devices,), ("chain",))
-            chain_sharding = NamedSharding(mesh, PartitionSpec("chain"))
-            chain_keys = jax.device_put(chain_keys, chain_sharding)
-            states = jax.tree.map(lambda x: jax.device_put(x, chain_sharding),
-                                  states)
+            total_steps = 0
+            done = False
 
-            # The running function.
-            def run_loop(key, kernel, state, num_samples):
-                @jax.jit
-                def step(state, key):
-                    state, _ = kernel(key, state)
-                    return state, (state.logdensity, state.position)
+            all_logdensities = None
+            all_positions = None
 
-                sample_keys = jax.random.split(key, num_samples)
-                _, states = jax.lax.scan(step, state, sample_keys)
-                return states
-
-            def shard_chains(keys, local_states):
-                return jax.vmap(
-                    lambda k, s: run_loop(k, sampler.step, s, num_steps),
-                    in_axes=(0, 0),
-                )(keys, local_states)
-
-            state_spec = jax.tree.map(
-                lambda _: PartitionSpec("chain"), states
-            )
-
-            # The actual sharder: it maps from (starting) states to
-            # an output array of [logp, theta] per chain.
-            parallel_sampling = jax.jit(
-                jax.shard_map(
-                    shard_chains, mesh=mesh,
-                    in_specs=(PartitionSpec("chain"), state_spec),
-                    out_specs=(
-                        PartitionSpec("chain", None),
-                        PartitionSpec("chain", None, None),
-                    ),
-                    check_vma=False,
+            while not done:
+                # Initialize sharding setup.
+                mesh = jax.make_mesh((n_devices,), ("chain",))
+                chain_sharding = NamedSharding(mesh, PartitionSpec("chain"))
+                chain_keys = jax.device_put(chain_keys, chain_sharding)
+                states = jax.tree.map(
+                    lambda x: jax.device_put(x, chain_sharding), states
                 )
-            )
 
-            # Sampling!
-            with blackjax.progress_bar(label="Sampling"):
-                logdensities, positions = parallel_sampling(chain_keys, states)
-                positions.block_until_ready()
+                # The running function.
+                def run_loop(key, kernel, state, num_samples):
+                    @jax.jit
+                    def step(state, _):
+                        state, key = state
+                        key, sample_key = jax.random.split(key)
+                        state, _ = kernel(sample_key, state)
+                        return (state, key), (state.logdensity, state.position)
 
-            logdensities = np.asarray(logdensities)
-            positions = np.asarray(positions)
+                    (state, key), (logp, pos) = jax.lax.scan(
+                        step, (state, key), None, length=num_samples
+                    )
+                    return key, state, logp, pos
+
+                def shard_chains(keys, local_states):
+                    return jax.vmap(
+                        lambda k, s: run_loop(k, sampler.step, s, check_every),
+                        in_axes=(0, 0),
+                    )(keys, local_states)
+
+                state_spec = jax.tree.map(
+                    lambda _: PartitionSpec("chain"), states
+                )
+
+                # The actual sharder: it maps from (starting) states to
+                # an output array of [logp, theta] per chain.
+                parallel_sampling = jax.jit(
+                    jax.shard_map(
+                        shard_chains, mesh=mesh,
+                        in_specs=(PartitionSpec("chain"), state_spec),
+                        out_specs=(
+                            PartitionSpec("chain"),
+                            state_spec,
+                            PartitionSpec("chain", None),
+                            PartitionSpec("chain", None, None),
+                        ),
+                        check_vma=False,
+                    )
+                )
+
+                # Sampling!
+                with blackjax.progress_bar(label="Sampling"):
+                    chain_keys, states, logdensities, positions = \
+                        parallel_sampling(chain_keys, states)
+                    positions.block_until_ready()
+
+                total_steps += logdensities[0].shape[0]
+                logdensities = np.asarray(logdensities)
+                positions = np.asarray(positions)
+
+                if all_logdensities is None:
+                    all_logdensities = logdensities
+                    all_positions = positions
+                else:
+                    all_logdensities = np.concatenate(
+                        (all_logdensities, logdensities), axis=1
+                    )
+                    all_positions = np.concatenate(
+                        (all_positions, positions), axis=1
+                    )
+
+                chains = [pos[pos.shape[0] // 2:] for pos in all_positions]
+                Rminus1 = compute_Rminus1(chains)
+
+                logger.info(
+                    f"Convergence check at {total_steps} samples: "
+                    f"R-1 = {Rminus1:.3f}"
+                )
+
+                if Rminus1 <= converge_target:
+                    logger.info("Converged.")
+                    done = True
+                if total_steps >= num_steps:
+                    logger.info("Maximum step count reached.")
+                    done = True
+
+        logdensities = np.asarray(all_logdensities)
+        positions = np.asarray(all_positions)
 
         return logdensities, positions

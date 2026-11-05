@@ -171,17 +171,22 @@ def main(argv: list[str] | None = None) -> int:
         logger.info("Running chains.")
 
         n_runners = chain_args.get("runners", 1)
-        n_samples = chain_args["samples"]
+        n_samples = chain_args.get("samples", None)
         method = chain_args.get("method", "hmc")
 
         start_spread = chain_args.get("start_spread", 0.0)
         warmup_steps = chain_args.get("warmup", 0)
         kernel_args = chain_args.get("args", {})
 
+        converge_target = chain_args.get("converge_target", None)
+        check_every = chain_args.get("check_every", None)
+
         logdensities, positions = pipeline.sample(
             theta, num_steps=n_samples, num_samplers=n_runners, method=method,
             warmup_steps=warmup_steps, kernel_args=kernel_args,
-            start_spread=start_spread, tqdm=tqdm)
+            converge_target=converge_target, check_every=check_every,
+            start_spread=start_spread, tqdm=tqdm
+        )
 
         logger.info("Writing chains to files.")
 
