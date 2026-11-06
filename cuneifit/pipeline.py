@@ -797,34 +797,25 @@ class Pipeline:
                 if all_logdensities is None:
                     all_logdensities = logdensities
                     all_positions = positions
-
-                    if output is not None:
-                        for i, (logp, x) in enumerate(
-                            zip(all_logdensities, all_positions)
-                        ):
-                            np.savetxt(
-                                output % (i+1), np.c_[logp, x],
-                                delimiter="\t",
-                                fmt=["%.5f"] + ["%.5e"] * len(self.parameters),
-                                header=("log-posterior "
-                                        + " ".join(self.parameters))
-                            )
                 else:
-                    if output is not None:
-                        for i, (logp, x) in enumerate(
-                            zip(logdensities, positions)
-                        ):
-                            data = np.c_[logp, x]
-                            with open(output % (i+1), "a") as fp:
-                                data.tofile(fp, sep="\t",
-                                            format=(["%.5f"]+["%.5e"]*len(self.parameters)))  # noqa: F401
-
                     all_logdensities = np.concatenate(
                         (all_logdensities, logdensities), axis=1
                     )
                     all_positions = np.concatenate(
                         (all_positions, positions), axis=1
                     )
+
+                if output is not None:
+                    for i, (logp, x) in enumerate(
+                        zip(all_logdensities, all_positions)
+                    ):
+                        np.savetxt(
+                            output % (i+1), np.c_[logp, x],
+                            delimiter="\t",
+                            fmt=["%.5f"] + ["%.5e"] * len(self.parameters),
+                            header=("log-posterior "
+                                    + " ".join(self.parameters))
+                        )
 
                 chains = [pos[pos.shape[0] // 2:] for pos in all_positions]
                 Rminus1 = compute_Rminus1(chains)
