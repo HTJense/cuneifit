@@ -816,10 +816,8 @@ class Pipeline:
                         ):
                             data = np.c_[logp, x]
                             with open(output % (i+1), "a") as fp:
-                                data.tofile(
-                                    fp, sep="\t",
-                                    fmt=["%.5f"]+["%.5e"]*len(self.parameters),
-                                )
+                                data.tofile(fp, sep="\t",
+                                            format=(["%.5f"]+["%.5e"]*len(self.parameters)))  # noqa: F401
 
                     all_logdensities = np.concatenate(
                         (all_logdensities, logdensities), axis=1
