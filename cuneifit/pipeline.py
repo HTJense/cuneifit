@@ -4,6 +4,7 @@ import jax.numpy as jnp
 import jax.scipy as jsc
 import logging
 import numpy as np
+import scipy as sc
 from typing import Callable, Optional
 
 from .likelihood import Likelihood, GaussianLikelihood
@@ -640,7 +641,7 @@ class Pipeline:
             d = np.sqrt(np.diag(cov_of_means))
             corr_of_means = cov_of_means / (d[:, None] * d[None, :])
             nmean_of_covs = mean_of_covs / (d[:, None] * d[None, :])
-            lam = np.linalg.eigh(corr_of_means, nmean_of_covs,
+            lam = sc.linalg.eigh(corr_of_means, nmean_of_covs,
                                  eigvals_only=True)
             return max(np.abs(lam))
 
@@ -741,7 +742,6 @@ class Pipeline:
                     sampler.init(state.position) for _ in range(num_samplers)
                 ]
 
-            states = jax.tree.map(lambda *xs: jnp.stack(xs), *states)
             chain_keys = jax.random.split(rng_key, num_samplers)
 
             total_steps = 0
