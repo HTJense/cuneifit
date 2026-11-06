@@ -104,7 +104,7 @@ class Null(Likelihood):
 
     def initialize(self):
         self.like = cmb_like.CMBNull(self.like_config)
-        self.theory = fg.BandpowerForegrounds(self.fg_config, self.like)
+        self.theory = fg.BandpowerForegrounds(self.fg_config)
 
     def get_requirements(self):
         return {p: None for p in self.like.parameters + self.theory.parameters}
