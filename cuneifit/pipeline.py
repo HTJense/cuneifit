@@ -517,7 +517,7 @@ class Pipeline:
                num_samplers: int = 1, method: str = "nuts", rng_key=None,
                kernel_args=None, warmup_steps: int = 0,
                start_spread: float = 0.0, single_splits: int = 4,
-               tqdm=None
+               tqdm=None, output: str = None
                ) -> tuple[np.ndarray, np.ndarray]:
         """Sample a chain using a BlackJAX sampler (e.g. NUTS or HMC).
 
@@ -587,6 +587,8 @@ class Pipeline:
 
         logdensities = []
         positions = []
+        if output is not None:
+            output += ".%d.txt"
 
         if warmup_steps > 0:
             # Do a warmup run.
@@ -657,6 +659,16 @@ class Pipeline:
                     total_steps += 1
 
                 chain = np.asarray(positions)
+                if output is not None:
+                    # TODO: Replace this by an append method instead.
+                    # (should only write to a file on the first write,
+                    # then append every time after.
+                    np.savetxt(
+                        output % 1, np.c_[logdensities, positions],
+                        delimiter="\t",
+                        fmt=["%.5f"] + ["%.5e"] * len(self.parameters),
+                        header="log-posterior " + " ".join(self.parameters)
+                    )
                 N = len(chain) // (single_splits + 1)
                 chains = [
                     chain[i*N:(i+1)*N] for i in range(1, single_splits+1)
@@ -785,7 +797,30 @@ class Pipeline:
                 if all_logdensities is None:
                     all_logdensities = logdensities
                     all_positions = positions
+
+                    if output is not None:
+                        for i, (logp, x) in enumerate(
+                            zip(all_logdensities, all_positions)
+                        ):
+                            np.savetxt(
+                                output % (i+1), np.c_[logp, x],
+                                delimiter="\t",
+                                fmt=["%.5f"] + ["%.5e"] * len(self.parameters),
+                                header=("log-posterior "
+                                        + " ".join(self.parameters))
+                            )
                 else:
+                    if output is not None:
+                        for i, (logp, x) in enumerate(
+                            zip(logdensities, positions)
+                        ):
+                            data = np.c_[logp, x]
+                            with open(output % (i+1), "a") as fp:
+                                data.tofile(
+                                    fp, sep="\t",
+                                    fmt=["%.5f"]+["%.5e"]*len(self.parameters),
+                                )
+
                     all_logdensities = np.concatenate(
                         (all_logdensities, logdensities), axis=1
                     )

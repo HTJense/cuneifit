@@ -185,18 +185,8 @@ def main(argv: list[str] | None = None) -> int:
             theta, num_steps=n_samples, num_samplers=n_runners, method=method,
             warmup_steps=warmup_steps, kernel_args=kernel_args,
             converge_target=converge_target, check_every=check_every,
-            start_spread=start_spread, tqdm=tqdm
+            start_spread=start_spread, tqdm=tqdm, output=output
         )
-
-        logger.info("Writing chains to files.")
-
-        for i in range(n_runners):
-            np.savetxt(
-                output + f".{i+1}.txt",
-                np.c_[logdensities[i], positions[i]], delimiter="\t",
-                fmt=["%.5f"] + ["%.5e"] * len(pipeline.parameters),
-                header="log-posterior " + " ".join(pipeline.parameters)
-            )
 
         if args.plot:
             # Create getdist triangle + 1D plots.
