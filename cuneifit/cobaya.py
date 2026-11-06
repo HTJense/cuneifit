@@ -31,7 +31,7 @@ class MultiFrequency(Likelihood):
     def logp(self, **params):
         cls = self.provider.get_Cl(ell_factor=True)
         theta_fg = np.array([params[k] for k in self.theory.parameters])
-        foregrounds = self.theory.get_foreground_model(theta_fg)
+        foregrounds = self.theory.get_foregrounds(theta_fg)
         theta_like = np.array([params[k] for k in self.like.parameters])
         chi2 = self.like.chisquare(theta_like, cls=cls,
                                    foregrounds=foregrounds)
@@ -88,7 +88,7 @@ class Moped(Likelihood):
     def logp(self, **params):
         cls = self.provider.get_Cl(ell_factor=True)
         theta_fg = np.array([params[k] for k in self.theory.parameters])
-        foregrounds = self.theory.get_foreground_model(theta_fg)
+        foregrounds = self.theory.get_foregrounds(theta_fg)
         theta_like = np.array([params[k] for k in self.like.parameters])
         chi2 = self.like.chisquare(theta_like, cls=cls,
                                    foregrounds=foregrounds)
@@ -111,7 +111,7 @@ class Null(Likelihood):
 
     def logp(self, **params):
         theta_fg = np.array([params[k] for k in self.theory.parameters])
-        foregrounds = self.theory.get_foreground_model(theta_fg)
+        foregrounds = self.theory.get_foregrounds(theta_fg)
         theta_like = np.array([params[k] for k in self.like.parameters])
         chi2 = self.like.chisquare(theta_like, foregrounds=foregrounds)
 
