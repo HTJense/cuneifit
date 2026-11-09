@@ -644,7 +644,8 @@ class Pipeline:
         else:
             # Don't do a warmup run - the user may provide some settings.
             sampler = getattr(blackjax, method)(
-                logpost_z, **kernel_args
+                logpost_z, inverse_mass_matrix=jnp.eye(len(self.parameters)),
+                **kernel_args
             )
             state = sampler.init(z0)
 
