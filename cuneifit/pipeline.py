@@ -588,12 +588,17 @@ class Pipeline:
                            "same starting point. You probably want to give "
                            "them a bit of spread?")
 
+        # Setup coordinate normalization.
         F = self.fisher(theta_start)
         F = (F + F.T) / 2.
         lam, vec = jnp.linalg.eigh(F)
         lam = jnp.maximum(lam, 1e-8 * jnp.max(lam))
         L = vec / jnp.sqrt(lam)[None, :]
-        Minv = L @ L.T
+        theta_off = theta_start
+
+        theta_z = lambda z: L @ z + theta_off
+        logpost_z = lambda z: self.logposterior(theta_z(z))
+        z0 = jnp.zeros_like(theta_start)
 
         if not hasattr(blackjax, method):
             raise RuntimeError(f"Sampling method {method} not found in "
@@ -609,26 +614,22 @@ class Pipeline:
             logger.info(f"Running {warmup_steps} warm-up steps.")
 
             warmup = blackjax.window_adaptation(
-                getattr(blackjax, method), self.logposterior,
-                initial_inverse_mass_matrix=Minv,
+                getattr(blackjax, method), logpost_z,
                 is_mass_matrix_diagonal=False,
             )
 
             rng_key, warmup_key = jax.random.split(rng_key, 2)
             with blackjax.progress_bar(label="Warm-up"):
-                (state, parameters), _ = warmup.run(warmup_key, theta_start,
+                (state, parameters), _ = warmup.run(warmup_key, z0,
                                                     num_steps=warmup_steps)
 
-            Minv = jnp.asarray(parameters["inverse_mass_matrix"])
-            sampler = getattr(blackjax, method)(self.logposterior,
-                                                **parameters)
+            sampler = getattr(blackjax, method)(logpost_z, **parameters)
         else:
             # Don't do a warmup run - the user may provide some settings.
             sampler = getattr(blackjax, method)(
-                self.logposterior, inverse_mass_matrix=Minv,
-                **kernel_args
+                logpost_z, **kernel_args
             )
-            state = sampler.init(theta_start)
+            state = sampler.init(z0)
 
         # Function to compute the Gelman-Rubin R-1 statistic.
         def compute_Rminus1(samples):
@@ -652,10 +653,9 @@ class Pipeline:
             if start_spread > 0.0:
                 logger.info(f"Giving sampler {start_spread} sigma random "
                             "offset.")
-                L = jnp.linalg.cholesky(Minv)
                 init_key, rng_key = jax.random.split(rng_key, 2)
                 gn = jax.random.normal(init_key, shape=(state.position.size,))
-                theta_start = state.position + start_spread * (L @ gn)
+                theta_start = state.position + start_spread * gn
                 state = sampler.init(theta_start)
 
             step = jax.jit(sampler.step)
@@ -669,7 +669,9 @@ class Pipeline:
                     key = jax.random.fold_in(rng_key, total_steps)
                     state, _ = step(key, state)
                     logdensities.append(float(state.logdensity))
-                    positions.append(jnp.asarray(state.position))
+                    positions.append(
+                        jnp.asarray(theta_z(state.position))
+                    )
                     total_steps += 1
 
                 chain = np.asarray(positions)
@@ -730,12 +732,11 @@ class Pipeline:
             if start_spread > 0.0:
                 logger.info(f"Giving samplers {start_spread} sigma random "
                             "offset.")
-                L = jnp.linalg.cholesky(Minv)
                 init_key, rng_key = jax.random.split(rng_key, 2)
                 gn = jax.random.normal(
                     init_key, shape=(num_samplers, state.position.size)
                 )
-                theta_start = state.position + start_spread * (gn @ L.T)
+                theta_start = state.position + start_spread * gn
                 states = jax.vmap(sampler.init)(theta_start)
             else:
                 states = [
@@ -760,7 +761,6 @@ class Pipeline:
 
             # The running function.
             def run_loop(key, kernel, state, num_samples):
-                @jax.jit
                 def step(state, _):
                     state, key = state
                     key, sample_key = jax.random.split(key)
@@ -805,9 +805,11 @@ class Pipeline:
                         parallel_sampling(chain_keys, states)
                     positions.block_until_ready()
 
+                th_pos = positions @ L.T + theta_off
+
                 total_steps += check_every
                 logdensities = np.asarray(logdensities)
-                positions = np.asarray(positions)
+                positions = np.asarray(th_pos)
 
                 if all_logdensities is None:
                     all_logdensities = logdensities
