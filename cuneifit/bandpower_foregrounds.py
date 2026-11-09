@@ -182,7 +182,9 @@ class BandpowerForegrounds(Theory):
             for idx, fg in zip(self.fg_indices[cl],
                                self.foreground_components[cl]):
                 theta_fg = theta[idx]
-                fg_total = fg_total.at[self.ells].add(fg(self.ells, nu, bp, theta_fg))
+                fg_total = fg_total.at[self.ells].add(
+                    fg(self.ells, nu, bp, theta_fg)
+                )
 
             for i, exp1 in enumerate(self.experiments):
                 for j, exp2 in enumerate(self.experiments):
