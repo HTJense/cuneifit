@@ -35,6 +35,7 @@ Issues = "https://github.com/HTJense/cuneifit/issues"
 
 [project.optional-dependencies]
 cobaya = ["cobaya"]
+sampling = ["blackjax", "arviz"]
 
 [project.scripts]
 cuneifit = "cuneifit.cli:main"

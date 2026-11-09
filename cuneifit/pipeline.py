@@ -563,6 +563,7 @@ class Pipeline:
         tqdm
         """
         import blackjax
+        import arviz as az
 
         if rng_key is None:
             import secrets
@@ -649,18 +650,7 @@ class Pipeline:
 
         # Function to compute the Gelman-Rubin R-1 statistic.
         def compute_Rminus1(samples):
-            means = np.array([np.mean(x, axis=0) for x in samples])
-            covs = np.array([np.cov(x.T) for x in samples])
-
-            mean_of_covs = np.average(covs, axis=0)
-            cov_of_means = np.atleast_2d(np.cov(means.T))
-
-            d = np.sqrt(np.diag(cov_of_means))
-            corr_of_means = cov_of_means / (d[:, None] * d[None, :])
-            nmean_of_covs = mean_of_covs / (d[:, None] * d[None, :])
-            lam = sc.linalg.eigh(corr_of_means, nmean_of_covs,
-                                 eigvals_only=True)
-            return max(np.abs(lam))
+            return np.max(np.asarray(az.rhat(samples, method="rank"))) - 1.0
 
         if num_samplers == 1:
             # Run only a single chain.
@@ -853,9 +843,8 @@ class Pipeline:
                                     + " ".join(self.parameters))
                         )
 
-                chains = [pos[pos.shape[0] // 2:] for pos in all_positions]
                 try:
-                    Rminus1 = compute_Rminus1(chains)
+                    Rminus1 = compute_Rminus1(all_positions)
 
                     logger.info(
                         f"Convergence check at {total_steps} samples: "
