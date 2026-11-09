@@ -596,8 +596,12 @@ class Pipeline:
         L = vec / jnp.sqrt(lam)[None, :]
         theta_off = theta_start
 
-        theta_z = lambda z: L @ z + theta_off
-        logpost_z = lambda z: self.logposterior(theta_z(z))
+        def theta_z(z):
+            return L @ z + theta_off
+
+        def logpost_z(z):
+            return self.logposterior(theta_z(z))
+
         z0 = jnp.zeros_like(theta_start)
 
         if not hasattr(blackjax, method):
@@ -751,7 +755,7 @@ class Pipeline:
             all_logdensities = None
             all_positions = None
 
-             # Initialize sharding setup.
+            # Initialize sharding setup.
             mesh = jax.make_mesh((n_devices,), ("chain",))
             chain_sharding = NamedSharding(mesh, PartitionSpec("chain"))
             chain_keys = jax.device_put(chain_keys, chain_sharding)
@@ -838,19 +842,23 @@ class Pipeline:
                         )
 
                 chains = [pos[pos.shape[0] // 2:] for pos in all_positions]
-                Rminus1 = compute_Rminus1(chains)
+                try:
+                    Rminus1 = compute_Rminus1(chains)
 
-                logger.info(
-                    f"Convergence check at {total_steps} samples: "
-                    f"R-1 = {Rminus1:.3f}"
-                )
+                    logger.info(
+                        f"Convergence check at {total_steps} samples: "
+                        f"R-1 = {Rminus1:.3f}"
+                    )
 
-                if Rminus1 <= converge_target:
-                    logger.info("Converged.")
-                    done = True
-                if total_steps >= num_steps:
-                    logger.info("Maximum step count reached.")
-                    done = True
+                    if Rminus1 <= converge_target:
+                        logger.info("Converged.")
+                        done = True
+                    if total_steps >= num_steps:
+                        logger.info("Maximum step count reached.")
+                        done = True
+                except Exception:
+                    logger.info("Convergence check failed. "
+                                "We'll run for another iteration.")
 
         logdensities = np.asarray(all_logdensities)
         positions = np.asarray(all_positions)
