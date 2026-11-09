@@ -624,8 +624,20 @@ class Pipeline:
 
             rng_key, warmup_key = jax.random.split(rng_key, 2)
             with blackjax.progress_bar(label="Warm-up"):
-                (state, parameters), _ = warmup.run(warmup_key, z0,
-                                                    num_steps=warmup_steps)
+                (state, parameters), adapt = warmup.run(
+                    warmup_key, z0, num_steps=warmup_steps
+                )
+
+            eps = float(parameters["step_size"])
+            ndiv = int(adapt.info.is_divergent.sum())
+            logger.info(f"Warm-up done: step size = {eps:.3g}")
+            logger.info(f"  divergent steps: {ndiv} / {warmup_steps}")
+            if not np.isfinite(eps) or eps < 1e-4:
+                raise RuntimeError(
+                    f"Warm-up collapsed (step size = {eps:.3g}); check that "
+                    "the log-posterior and its gradients are finite near "
+                    "the start."
+                )
 
             sampler = getattr(blackjax, method)(logpost_z, **parameters)
         else:

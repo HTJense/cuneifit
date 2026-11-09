@@ -27,7 +27,7 @@ class BandpowerForegrounds(Theory):
         self.config = load_config(config, **kwargs)
 
         self.lmax = self.config["lmax"]
-        self.ells = jnp.arange(self.lmax+1)
+        self.ells = jnp.arange(2, self.lmax+1)
         self.experiments = self.config["experiments"]
 
         data_path = resolve_data(self.config["data_folder"])
@@ -176,13 +176,13 @@ class BandpowerForegrounds(Theory):
         foregrounds = {}
 
         for cl in self.foreground_components:
-            fg_total = jnp.zeros((*self.ells.shape, len(self.experiments),
+            fg_total = jnp.zeros((self.lmax+1, len(self.experiments),
                                   len(self.experiments)))
 
             for idx, fg in zip(self.fg_indices[cl],
                                self.foreground_components[cl]):
                 theta_fg = theta[idx]
-                fg_total = fg_total + fg(self.ells, nu, bp, theta_fg)
+                fg_total = fg_total.at[self.ells].add(fg(self.ells, nu, bp, theta_fg))
 
             for i, exp1 in enumerate(self.experiments):
                 for j, exp2 in enumerate(self.experiments):
