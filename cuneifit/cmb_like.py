@@ -64,7 +64,7 @@ class MultiFrequency(GaussianLikelihood):
         data_indices = []
         self.lmax = defaults["lmax"]
         self.spec_meta = []
-        self.ells = jnp.arange(2, self.lmax+1)
+        self.ells = jnp.arange(self.lmax+1)
         i0 = 0
 
         self.parameters = ["calG_all"]
@@ -136,7 +136,7 @@ class MultiFrequency(GaussianLikelihood):
         for block in self.spec_meta:
             ids = block["ids"]
             xy = block["spec"]
-            ls = block["values"] - 2
+            ls = block["values"]
             ix, jx = block["ix"]
 
             sub = spec[xy, ls, ix, jx]
