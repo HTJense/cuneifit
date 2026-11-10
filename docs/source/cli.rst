@@ -122,13 +122,15 @@ A simple analysis
 
     # These arguments are passed almost exactly to the pipeline's minimize
     # function, so see that function's documentation for information on what
-    # each setting does.
+    # each setting does. The function runs until its tolerances (atol, rtol,
+    # gtol) are met. In this case, it runs until the gradient is < 10^-5.
     minimizer:
       runners: 100
       method: adam
+      gtol: 1.e-5
 
       args:
-        learning_rate: 1.0e-2
+        learning_rate: 0.1
 
     # If a minimizer is found, its result is used as the starting point for
     # running HMC chains. Again, these parameters are passed on almost exactly
@@ -137,7 +139,17 @@ A simple analysis
       method: nuts
       runners: 4
       warmup: 100
-      samples: 1000
+
+      # Statistics tested for convergence checks.
+      converge_target:
+        # The Bayesian fraction of missing information - > 0.3 is a good target.
+        bfmi: 0.3
+        # The R-1 target statistic, R-1 < 0.01 is used as a target here.
+        Rhatm1: 0.01
+        # How many effective samples should be targeted in the bulk and tails
+        # of the distribution.
+        ess_bulk: 400
+        ess_tail: 400
 
     # Finally, we can pass on some settings to Cuneifit's internal plotting
     # functions:

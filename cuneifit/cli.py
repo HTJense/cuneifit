@@ -120,13 +120,14 @@ def main(argv: list[str] | None = None) -> int:
         start_spread = min_args.get("start_spread", 1.0)
         rtol = min_args.get("rtol", 0.0)
         atol = min_args.get("atol", 1e-2)
+        gtol = min_args.get("gtol", 0.0)
         opt_args = min_args.get("args", {})
 
         logp, thetas = pipeline.minimize(
             theta, num_runs=num_runs, method=method, patience=patience,
             min_steps=min_steps, max_steps=max_steps,
-            start_spread=start_spread, rtol=rtol, atol=atol, tqdm=tqdm,
-            opt_args=opt_args,
+            start_spread=start_spread, rtol=rtol, atol=atol, gtol=gtol,
+            tqdm=tqdm, opt_args=opt_args,
         )
 
         logp = np.asarray(logp)
@@ -170,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
     if (chain_args := run_config.get("chain", None)):
         logger.info("Running chains.")
 
-        n_runners = chain_args.get("runners", 1)
+        n_runners = chain_args.get("runners", 2)
         n_samples = chain_args.get("samples", None)
         method = chain_args.get("method", "hmc")
 
