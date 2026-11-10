@@ -620,7 +620,7 @@ class Pipeline:
 
             warmup = blackjax.window_adaptation(
                 getattr(blackjax, method), logpost_z,
-                is_mass_matrix_diagonal=False,
+                is_mass_matrix_diagonal=True,
             )
 
             rng_key, warmup_key = jax.random.split(rng_key, 2)
