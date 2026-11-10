@@ -22,6 +22,11 @@ def _cmb2bb(nu, T=T_CMB):
     return jnp.exp(x) * (nu * x / jnp.expm1(x)) ** 2.
 
 
+def _trapz_weights(nu):
+    d = jnp.diff(nu)
+    return jnp.concatenate([d[:1] / 2, (d[1:] + d[:-1]) / 2, d[-1:] / 2])
+
+
 class BandpowerForegrounds(Theory):
     def __init__(self, config: str | dict | None, **kwargs):
         self.config = load_config(config, **kwargs)
@@ -60,6 +65,10 @@ class BandpowerForegrounds(Theory):
              for exp in self.experiments])
 
         self.build_foreground_model(self.config["components"])
+        self.bp_w = [
+            _trapz_weights(nu) if len(nu) > 1 else jnp.ones(1)
+            for nu in self.nu
+        ]
 
     def load_bandpass_from_file(self):
         self.nu = [self.tracers[exp + "_s0"]["nu"].astype(float)
@@ -156,17 +165,14 @@ class BandpowerForegrounds(Theory):
         nus = []
         bps = []
 
-        for i, (exp, nu, bp) in enumerate(zip(self.experiments, self.nu,
-                                              self.bp)):
+        for i, (nu, bp0, w) in enumerate(zip(self.nu, self.bp, self.bp_w)):
             nub = nu + bandint_theta[i]
             nus.append(nub)
             if len(nub) > 1:
-                nup = jnp.broadcast_to(_cmb2bb(nub)[:, None], bp.shape)
-                bp_beam = bp * nup
-                bp_beam = bp_beam / jnp.trapezoid(bp_beam, nub, axis=0)
+                wg = w * _cmb2bb(nub)
+                bps.append((wg, bp0, wg @ bp0))
             else:
-                bp_beam = bp
-            bps.append(bp_beam)
+                bps.append((w, bp0, jnp.ones(bp0.shape[1])))
 
         return nus, bps
 
