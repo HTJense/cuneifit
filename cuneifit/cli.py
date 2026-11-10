@@ -171,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
     if (chain_args := run_config.get("chain", None)):
         logger.info("Running chains.")
 
-        n_runners = chain_args.get("runners", 1)
+        n_runners = chain_args.get("runners", 2)
         n_samples = chain_args.get("samples", None)
         method = chain_args.get("method", "hmc")
 
