@@ -537,9 +537,9 @@ class Pipeline:
             How often we should check for convergence.
         converge_target : dict
             The target for the convergence checks. Can contain a maximum value
-            for `Rhat`, and minimum values for `bfmi`, `ess_bulk` and
+            for `Rhatm1`, and minimum values for `bfmi`, `ess_bulk` and
             `ess_tail`. The chain is considered converged if each of these
-            conditions is met. Defaults to `{'Rhat': 1.01}`.
+            conditions is met. Defaults to `{'Rhatm1': 0.01}`.
         num_samplers : int
             The number of samplers to be run. You must run at least two
             samplers.
@@ -703,7 +703,9 @@ class Pipeline:
             diagnostics = {}
 
             Rhat = az.rhat(post, method="rank")
-            diagnostics["Rhat"] = np.max(np.asarray(Rhat.to_array().values))
+            diagnostics["Rhatm1"] = (
+                np.max(np.asarray(Rhat.to_array().values)) - 1.
+            )
 
             ess = az.ess(post, method="bulk")
             diagnostics["ess_bulk"] = np.min(np.asarray(ess.to_array().values))
@@ -716,8 +718,8 @@ class Pipeline:
                 np.asarray(bfmi.to_dataset()["energy"].values)
             )
 
-            if (Rhat_target := converge_target.get("Rhat")) is not None:
-                if diagnostics["Rhat"] > Rhat_target:
+            if (Rhat_target := converge_target.get("Rhatm1")) is not None:
+                if diagnostics["Rhatm1"] > Rhat_target:
                     return diagnostics, False
             if (ess_target := converge_target.get("ess_bulk")) is not None:
                 if diagnostics["ess_bulk"] < ess_target:
@@ -840,7 +842,7 @@ class Pipeline:
 
             logger.info(f"Convergence check at {total_steps} samples: ")
 
-            logger.info(f"    Rhat: {diagnostics['Rhat']:.3f}")
+            logger.info(f"    Rhat-1: {diagnostics['Rhatm1']:.3f}")
             logger.info(f"    BFMI: {diagnostics['bfmi']:.2f}")
             logger.info(f"    ESS (bulk): {diagnostics['ess_bulk']:.2f}")
             logger.info(f"    ESS (tail): {diagnostics['ess_tail']:.2f}")
