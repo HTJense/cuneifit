@@ -1,11 +1,9 @@
-import datetime
 import jax
 from jax.sharding import NamedSharding, PartitionSpec
 import jax.numpy as jnp
 import jax.scipy as jsc
 import logging
 import numpy as np
-import scipy as sc
 from typing import Callable, Optional
 
 from .likelihood import Likelihood, GaussianLikelihood
@@ -603,7 +601,6 @@ class Pipeline:
         positions = []
         if output is not None:
             chain_output = output + ".%d.txt"
-            info_output = output + ".info"
 
         if warmup_steps > 0:
             # Do a warmup run.
@@ -644,7 +641,9 @@ class Pipeline:
         devices = jax.devices()
         n_devices = len(devices)
         if num_samplers % n_devices != 0:
-            new_samplers = num_samplers + (n_devices - num_samplers % n_devices)
+            new_samplers = (
+                num_samplers + (n_devices - num_samplers % n_devices)
+            )
 
             logger.warning(
                 f"The number of chain samplers = {num_samplers} must be "
@@ -713,18 +712,20 @@ class Pipeline:
             diagnostics["ess_tail"] = np.min(np.asarray(ess.to_array().values))
 
             bfmi = az.bfmi(data)
-            diagnostics["bfmi"] = np.min(np.asarray(bfmi.to_dataset()["energy"].values))
+            diagnostics["bfmi"] = np.min(
+                np.asarray(bfmi.to_dataset()["energy"].values)
+            )
 
-            if (Rhat_target := converge_target.get("Rhat", None)) is not None:
+            if (Rhat_target := converge_target.get("Rhat")) is not None:
                 if diagnostics["Rhat"] > Rhat_target:
                     return diagnostics, False
-            if (ess_target := converge_target.get("ess_bulk", None)) is not None:
+            if (ess_target := converge_target.get("ess_bulk")) is not None:
                 if diagnostics["ess_bulk"] < ess_target:
                     return diagnostics, False
-            if (ess_target := converge_target.get("ess_tail", None)) is not None:
+            if (ess_target := converge_target.get("ess_tail")) is not None:
                 if diagnostics["ess_tail"] < ess_target:
                     return diagnostics, False
-            if (bfmi_target := converge_target.get("bfmi", None)) is not None:
+            if (bfmi_target := converge_target.get("bfmi")) is not None:
                 if diagnostics["bfmi"] < bfmi_target:
                     return diagnostics, False
             return diagnostics, True
@@ -807,7 +808,7 @@ class Pipeline:
 
             idata = az.from_dict({
                 "posterior": {
-                    p: all_positions[...,i]
+                    p: all_positions[..., i]
                     for i, p in enumerate(self.parameters)
                 },
                 "sample_stats": {
