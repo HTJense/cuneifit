@@ -95,10 +95,16 @@ def main(argv: list[str] | None = None) -> int:
 
     # Set up the parameter restrictions.
     restrict = pipeline.get_default_restrictions()
-    restrict.update(run_config.get("restrict", {}))
     for par in run_config["start"]:
         if par in restrict:
             restrict.pop(par)
+
+    restrict.update((user_restrict := run_config.get("restrict", {})))
+    for par in run_config["start"]:
+        if par in user_restrict:
+            raise RuntimeError(f"Parameter {par} is present in both the "
+                               "`restrict` block and the `start` block: must "
+                               "be one or the other!")
 
     pipeline.restrict(restrict, include_defaults=False)
 
