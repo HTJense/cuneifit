@@ -98,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
     restrict.update(run_config.get("restrict", {}))
     for par in run_config["start"]:
         if par in restrict:
-           restrict.pop(par)
+            restrict.pop(par)
 
     pipeline.restrict(restrict, include_defaults=False)
 

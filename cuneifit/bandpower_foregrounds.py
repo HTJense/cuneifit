@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import sacc
 from scipy import constants
 
-from .config import load_config, resolve_data
+from .config import resolve_data
 from .theory import Theory
 
 from . import fg_model as fgm
