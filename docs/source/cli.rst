@@ -17,7 +17,7 @@ terminal.
 
 .. code-block :: bash
 
-    usage: Cuneifit [-h] [--debug] [--plot] run_file
+    usage: cuneifit [-h] [--debug] [--plot] run_file
 
     Cuneifit --- Differentiable Inference for Simons Observatory
 
@@ -43,10 +43,18 @@ annotated example configuration is given here.
 
 .. important::
 
-    To run the minimizer, make sure you have installed :code:`optax`.
+    The minimizer is run through the standard dependency :code:`optax`.
+    However, the full differentiable sampling interface relies on external
+    packages that are installed as optional dependencies only. If you do not
+    want to install these, remove the :code:`chain` block from the example
+    below.
 
-    To run the full chain sampler, make sure you have installed
-    :code:`blackjax`.
+    To run the full chain sampler, make sure you install:
+
+    .. code-block :: bash
+
+        pip install cuneifit[sampling]
+
     Note that the sampler makes use of jax's sharding API. If you are running
     the code on a CPU, then XLA will not default to using multiple CPU cores
     at the same time. This can be enabled by setting the environment variable
@@ -103,7 +111,11 @@ A simple analysis
 
     # We can restrict several parameters by flagging them as "restricted":
     restrict:
-      calT: 1.0
+      # The act_dr6_cmbonly preset comes with its own restrictions already,
+      # equivalent to:
+      # calT: 1.0
+      # however, we do not have to manually set this. If we were to set it here
+      # we well, the value given here takes precedence.
 
     # Next, our analysis needs a starting point. We do this with a "start"
     # block:
@@ -116,6 +128,8 @@ A simple analysis
       tau: 0.06
       calG: 1.0
       calP: 1.0
+      # Including default-restricted parameters in the sampling block allows
+      # us to override these restrictions.
 
     # We can then run either a minimizer or a full chain, or both (in *that*
     # order!).
@@ -126,23 +140,48 @@ A simple analysis
     # gtol) are met. In this case, it runs until the gradient is < 10^-5.
     minimizer:
       runners: 100
+      # We can sample the starting positions of our minimizers from the
+      # Fisher estimate of the posterior around our starting point - doing
+      # so can help find the true minimum if our posterior is multi-modal!
+      start_spread: 1.0
+      # We can use "adam" for the Adam optimizer or "lbgfs" for the L-BGFS
+      # optimizer. Adam is sufficient for most cases.
       method: adam
+      # Stopping conditions: we want to stop when the gradient remains below
+      # 10^-5 for 100 steps in a row.
+      patience: 100
       gtol: 1.e-5
 
+      # Some settings for the optimizer - in this case we set a learning rate
+      # only. See the optax documentation for what you can set.
       args:
         learning_rate: 0.1
 
     # If a minimizer is found, its result is used as the starting point for
     # running HMC chains. Again, these parameters are passed on almost exactly
     # to the pipeline's sample function.
+
+    # Remember: if you do not have the [sampling] optional dependency
+    # installed, remove this block from your run.
     chain:
+      # You can use NUTS or, if you prefer, HMC. In most cases, nuts will
+      # suffice.
       method: nuts
       runners: 4
+      # The warmup steps are used by the sampler to find the optimal
+      # local covariance + step-size for the leapfrog integrator. If for
+      # whatever reason you do not want a warm-up step, you can set the 
+      # sampler parameters manually with the `kernel_args` block.
       warmup: 100
+      # It is a good idea to give our samplers a small bit of scatter from
+      # the true minimum - this way they might explore the posterior region
+      # better.
+      start_spread: 0.2
 
-      # Statistics tested for convergence checks.
+      # Statistics tested for convergence checks. See the arviz documentation
+      # for information.
       converge_target:
-        # The Bayesian fraction of missing information - > 0.3 is a good target.
+        # The Bayesian fraction of missing information; >0.3 is a good target.
         bfmi: 0.3
         # The R-1 target statistic, R-1 < 0.01 is used as a target here.
         Rhatm1: 0.01

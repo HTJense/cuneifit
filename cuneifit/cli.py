@@ -120,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
     theta = pipeline.params_to_vec(run_config["start"])
     bestfit = None
 
-    if (min_args := run_config.get("minimizer", None)):
+    if (min_args := run_config.get("minimizer")):
         logger.info("Optimizing parameters.")
 
         num_runs = min_args.get("runners", 1)
@@ -179,19 +179,19 @@ def main(argv: list[str] | None = None) -> int:
         cuneifit.plots.plot_fisher_triangle(pipeline, theta, F, **plot_args)
         plt.savefig(os.path.join(dirname, "fisher.pdf"), bbox_inches="tight")
 
-    if (chain_args := run_config.get("chain", None)):
+    if (chain_args := run_config.get("chain")):
         logger.info("Running chains.")
 
         n_runners = chain_args.get("runners", 2)
-        n_samples = chain_args.get("samples", None)
-        method = chain_args.get("method", "hmc")
+        n_samples = chain_args.get("samples")
+        method = chain_args.get("method", "nuts")
 
         start_spread = chain_args.get("start_spread", 0.0)
         warmup_steps = chain_args.get("warmup", 0)
         kernel_args = chain_args.get("args", {})
 
-        converge_target = chain_args.get("converge_target", None)
-        check_every = chain_args.get("check_every", None)
+        converge_target = chain_args.get("converge_target")
+        check_every = chain_args.get("check_every")
 
         logdensities, positions = pipeline.sample(
             theta, num_steps=n_samples, num_samplers=n_runners, method=method,
