@@ -289,7 +289,7 @@ class Pipeline:
             self.models = []
 
             for idx, like in zip(self.like_indices, self.likelihoods):
-                self.models.append(jax.jit(make_model(like, idx)))
+                self.models.append(make_model(like, idx))
 
         return self.models
 
@@ -303,7 +303,7 @@ class Pipeline:
 
             for idx, mod, like in zip(self.like_indices, models,
                                       self.likelihoods):
-                self.jacobians.append(jax.jit(jax.jacfwd(mod)))
+                self.jacobians.append(jax.jacfwd(mod))
 
         return self.jacobians
 
