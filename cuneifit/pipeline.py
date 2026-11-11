@@ -83,7 +83,9 @@ class Pipeline:
         self.jacobians = None
         self.models = None
 
-    def restrict(self, theta_fixed: dict):
+        self.restrict({}, include_defaults=True)
+
+    def restrict(self, theta_fixed: dict, include_defaults: bool = True):
         """ Mark any set of parameters as "fixed" for gradient computation.
 
         Sometimes, a set of parameters is degenerate, or too complicated, or
@@ -97,13 +99,22 @@ class Pipeline:
         theta_fixed : dict
             A dictionary of name-value pairs for parameters that should be kept
             fixed in this analysis.
+        include_defaults : bool
+            If set, include the default restrictions requested by the
+            likelihood and theory codes.
         """
+        restrict = {}
+        if include_defaults:
+            restrict |= self.get_default_restrictions()
+
+        restrict |= theta_fixed
+
         self.parameters = self.parameters_full.copy()
-        for p in theta_fixed:
+        for p in restrict:
             self.parameters.remove(p)
 
         self.theta_default = jnp.array([
-            theta_fixed.get(p, jnp.nan) for p in self.parameters_full
+            restrict.get(p, jnp.nan) for p in self.parameters_full
         ])
         self.free_to_full = jnp.array([
             self.parameters_full.index(p) for p in self.parameters
@@ -126,6 +137,12 @@ class Pipeline:
         # Clear the Jacobians cache (they should be re-built).
         self.jacobians = None
         self.models = None
+
+    def get_default_restrictions(self) -> dict:
+        restrict = {}
+        for component in self.likelihoods + self.theories:
+            restrict |= component.default_restrictions
+        return restrict
 
     def params_to_vec(self, params: dict) -> jnp.ndarray:
         """ Create a parameter vector from a dictionary.

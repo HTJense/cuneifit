@@ -29,7 +29,7 @@ def _trapz_weights(nu):
 
 class BandpowerForegrounds(Theory):
     def __init__(self, config: str | dict | None, **kwargs):
-        self.config = load_config(config, **kwargs)
+        super().__init__(config, **kwargs)
 
         self.lmax = self.config["lmax"]
         self.ells = jnp.arange(2, self.lmax+1)

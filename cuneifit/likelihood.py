@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
+
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsc
+
+from .config import load_config
 
 
 class Likelihood(ABC):
@@ -14,6 +17,11 @@ class Likelihood(ABC):
         :math:`\\theta`.
     """
     parameters: list[str]
+    default_restrictions: dict = {}
+
+    def __init__(self, config: str | dict | None = None, **kwargs):
+        self.config = load_config(config, **kwargs)
+        self.default_restrictions = self.config.get("restrict", {})
 
     @abstractmethod
     def get_model(self, theta, /, **kwargs):

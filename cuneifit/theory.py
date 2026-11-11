@@ -1,10 +1,21 @@
 from abc import ABC, abstractmethod
+import logging
+
+from .config import load_config
+
+
+logger = logging.getLogger(__name__)
 
 
 class Theory(ABC):
     """Any object that computes some intermediate product that is used by
     Likelihood objects."""
     parameters: list[str]
+    default_restrictions: dict = {}
+
+    def __init__(self, config: str | dict | None = None, **kwargs):
+        self.config = load_config(config, **kwargs)
+        self.default_restrictions = self.config.get("restrict", {})
 
     @abstractmethod
     def compute(self, theta, /, **kwargs) -> dict:

@@ -1,5 +1,5 @@
-import numpy as np
 import jax.numpy as jnp
+import numpy as np
 
 from .cmb_like import MultiFrequency
 from .config import resolve_data
