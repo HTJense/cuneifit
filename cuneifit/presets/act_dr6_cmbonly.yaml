@@ -11,3 +11,6 @@ scales:
   ee: [600, *lmax]
 
 experiment: dr6_cmb
+
+restrict:
+  calT: 1.0

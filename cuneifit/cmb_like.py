@@ -1,9 +1,10 @@
 import os
+
 import jax.numpy as jnp
 import numpy as np
 import sacc
 
-from .config import load_config, resolve_data
+from .config import resolve_data
 from .likelihood import GaussianLikelihood
 
 
@@ -34,7 +35,7 @@ MFLIKE_DATA_TYPES = {
 
 class MultiFrequency(GaussianLikelihood):
     def __init__(self, config: str | dict | None = None, **kwargs):
-        self.config = load_config(config, **kwargs)
+        super().__init__(config, **kwargs)
 
         data_path = resolve_data(self.config["data_folder"])
         s = sacc.Sacc.load_fits(os.path.join(data_path,
@@ -231,7 +232,7 @@ class MultiFrequency(GaussianLikelihood):
 
 class CMBLite(GaussianLikelihood):
     def __init__(self, config: str | dict | None = None, **kwargs):
-        self.config = load_config(config, **kwargs)
+        super().__init__(config, **kwargs)
 
         data_path = resolve_data(self.config["data_folder"])
         s = sacc.Sacc.load_fits(os.path.join(data_path,

@@ -1,16 +1,16 @@
-import numpy as np
-import sacc
 import os
 
 import jax.numpy as jnp
+import numpy as np
+import sacc
 
-from .config import load_config, resolve_data
+from .config import resolve_data
 from .theory import Theory
 
 
 class LensingCorrections(Theory):
     def __init__(self, config: str | dict | None = None, **kwargs):
-        self.config = load_config(config, **kwargs)
+        super().__init__(config, **kwargs)
 
         data_path = resolve_data(self.config["data_folder"])
 

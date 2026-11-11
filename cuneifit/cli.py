@@ -93,9 +93,20 @@ def main(argv: list[str] | None = None) -> int:
 
     pipeline = cuneifit.Pipeline(*components)
 
-    # Check out the starting parameters.
-    if len(params_fix := run_config.get("restrict", {})) > 0:
-        pipeline.restrict(params_fix)
+    # Set up the parameter restrictions.
+    restrict = pipeline.get_default_restrictions()
+    for par in run_config["start"]:
+        if par in restrict:
+            restrict.pop(par)
+
+    restrict.update((user_restrict := run_config.get("restrict", {})))
+    for par in run_config["start"]:
+        if par in user_restrict:
+            raise RuntimeError(f"Parameter {par} is present in both the "
+                               "`restrict` block and the `start` block: must "
+                               "be one or the other!")
+
+    pipeline.restrict(restrict, include_defaults=False)
 
     logger.info(pipeline.parameters)
 

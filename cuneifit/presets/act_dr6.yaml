@@ -106,3 +106,6 @@ data:
         TE: [600, *lmax]
         EE: [600, *lmax]
 
+restrict:
+  calE_dr6_pa4_f220: 1.0
+

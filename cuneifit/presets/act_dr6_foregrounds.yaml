@@ -114,3 +114,13 @@ components:
         - alpha_dE
         - beta_d
         - T_effd
+
+restrict:
+  T_d: 9.6
+  T_effd: 19.6
+  alpha_c: 0.8
+  alpha_p: 1.0
+  alpha_s: 1.0
+  alpha_dT: -0.6
+  alpha_dE: -0.4
+  beta_d: 1.5
