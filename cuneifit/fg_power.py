@@ -1,7 +1,5 @@
 import os
 import numpy as np
-from functools import partial
-import jax
 import jax.numpy as jnp
 
 
@@ -13,7 +11,6 @@ class PowerLawCl:
         assert ell_0 > 0, "ell_0 must be positive."
         self.ell_0 = ell_0
 
-    @partial(jax.jit, static_argnums=(0,))
     def __call__(self, ell, theta):
         cl = theta[0] * (ell / self.ell_0) ** theta[1]
         return jnp.where(ell <= 0, 0, cl)
@@ -35,7 +32,6 @@ class PoissonCl:
         self.ell_0 = ell_0
         self.elp0 = ell_0 * (ell_0 + 1.)
 
-    @partial(jax.jit, static_argnums=(0,))
     def __call__(self, ell, theta):
         ls = jnp.where(ell <= 0, 1, ell)
         elp = ls * (ls + 1.)
@@ -64,7 +60,6 @@ class TemplateCl:
         self.ell_0 = ell_0
         self.template_cl = jnp.array(template_cl / template_cl[ell_0])
 
-    @partial(jax.jit, static_argnums=(0,))
     def __call__(self, ell, theta):
         return theta[0] * self.template_cl[ell]
 
@@ -85,7 +80,6 @@ class RescaledTemplateCl(TemplateCl):
         super().__init__(filename, ell_0, **kwargs)
         self.alpha_0 = alpha_0
 
-    @partial(jax.jit, static_argnums=(0,))
     def __call__(self, ell, theta):
         ls = jnp.where(ell <= 0, 1, ell)
         cl = (theta[0] * self.template_cl[ls]

@@ -1,5 +1,3 @@
-from functools import partial
-import jax
 import jax.numpy as jnp
 from scipy import constants
 
@@ -8,7 +6,6 @@ T_cmb = 2.72548
 hk_GHz = constants.h * 1e9 / constants.k
 
 
-@jax.jit
 def _rj2cmb(nu, T=T_cmb):
     x = nu * hk_GHz / T
     return (jnp.expm1(x) / x) ** 2. / jnp.exp(x)
@@ -21,7 +18,6 @@ class ConstantSED:
     def __init__(self, **kwargs):
         pass
 
-    @partial(jax.jit, static_argnums=(0,))
     def __call__(self, nu, theta):
         return jnp.ones_like(nu)
 
@@ -37,7 +33,6 @@ class PowerLawSED:
     def __init__(self, nu_0=150., **kwargs):
         self.nu_0 = nu_0
 
-    @partial(jax.jit, static_argnums=(0,))
     def __call__(self, nu, theta):
         return ((nu / self.nu_0) ** theta[0]
                 * (_rj2cmb(nu) / _rj2cmb(self.nu_0)))
@@ -54,7 +49,6 @@ class ModifiedBlackBodySED:
     def __init__(self, nu_0=150., **kwargs):
         self.nu_0 = nu_0
 
-    @partial(jax.jit, static_argnums=(0,))
     def __call__(self, nu, theta):
         x = nu * hk_GHz / theta[1]
         x0 = self.nu_0 * hk_GHz / theta[1]
@@ -74,7 +68,6 @@ class ThermalSZSED:
     def __init__(self, nu_0=150., **kwargs):
         self.nu_0 = nu_0
 
-    @partial(jax.jit, static_argnums=(0,))
     def __call__(self, nu, theta):
         x = nu * hk_GHz / T_cmb
         x0 = self.nu_0 * hk_GHz / T_cmb

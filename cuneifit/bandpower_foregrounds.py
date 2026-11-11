@@ -1,7 +1,6 @@
 import os
 
 import numpy as np
-import jax
 import jax.numpy as jnp
 import sacc
 from scipy import constants
@@ -16,7 +15,6 @@ from . import fg_sed as fgf
 T_CMB = 2.72548
 
 
-@jax.jit
 def _cmb2bb(nu, T=T_CMB):
     x = nu * constants.h * 1e9 / (constants.k * T)
     return jnp.exp(x) * (nu * x / jnp.expm1(x)) ** 2.

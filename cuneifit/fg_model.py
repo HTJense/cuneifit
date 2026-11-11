@@ -1,5 +1,3 @@
-from functools import partial
-import jax
 import jax.numpy as jnp
 
 
@@ -16,7 +14,6 @@ class CrossProductModel:
         self.power = power
         self.sed = sed
 
-    @partial(jax.jit, static_argnums=(0,))
     def __call__(self, ell, nus, bps, theta):
         theta_cl = theta[:self.power.n]
         theta_sed = theta[self.power.n:]
@@ -58,7 +55,6 @@ class CorrelatedCrossProductModel:
         self.n_s2 = (jnp.arange(self.sed2.n) + self.power1.n + self.power2.n
                      + self.powerx.n + self.sed1.n)
 
-    @partial(jax.jit, static_argnums=(0,))
     def __call__(self, ell, nus, bps, theta):
         theta_cl1 = theta[self.n_p1]
         theta_cl2 = theta[self.n_p2]
