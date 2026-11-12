@@ -177,7 +177,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.plot:
         cuneifit.plots.plot_fisher_triangle(pipeline, theta, F, **plot_args)
-        plt.savefig(os.path.join(dirname, "fisher.pdf"), bbox_inches="tight")
+        plt.savefig(output + "_fisher.pdf", bbox_inches="tight")
 
     if (chain_args := run_config.get("chain")):
         logger.info("Running chains.")
@@ -193,45 +193,11 @@ def main(argv: list[str] | None = None) -> int:
         converge_target = chain_args.get("converge_target")
         check_every = chain_args.get("check_every")
 
-        logdensities, positions = pipeline.sample(
+        pipeline.sample(
             theta, num_steps=n_samples, num_samplers=n_runners, method=method,
             warmup_steps=warmup_steps, kernel_args=kernel_args,
             converge_target=converge_target, check_every=check_every,
-            start_spread=start_spread, tqdm=tqdm, output=output
+            start_spread=start_spread, tqdm=tqdm, output=output, plot=args.plot
         )
-
-        if args.plot:
-            # Create getdist triangle + 1D plots.
-            logger.info("Creating posterior plots.")
-
-            from getdist import plots, MCSamples
-
-            settings = plots.GetDistPlotSettings()
-            getdist_settings = run_config.get("getdist_settings", {})
-            for k, v in getdist_settings.items():
-                if hasattr(settings, k):
-                    setattr(settings, k, v)
-
-            labels = [plot_args.get("labels", {}).get(p, p)
-                      for p in pipeline.parameters]
-            chain = MCSamples(samples=np.asarray(positions),
-                              loglikes=-np.asarray(logdensities),
-                              names=pipeline.parameters, labels=labels)
-            markers = {}
-            if bestfit is not None:
-                markers = {
-                    p: bestfit[i] for i, p in enumerate(pipeline.parameters)
-                }
-
-            if (burn_in := getdist_settings.get("burn_in", 0.0)) > 0.0:
-                chain.removeBurn(burn_in)
-
-            g = plots.get_subplot_plotter(settings=settings)
-            g.plots_1d([chain], markers=markers)
-            g.export(os.path.join(dirname, "posteriors.pdf"))
-
-            g = plots.get_subplot_plotter(settings=settings)
-            g.triangle_plot([chain], filled=True, markers=markers)
-            g.export(os.path.join(dirname, "triangle.pdf"))
 
     logger.info("Done.")

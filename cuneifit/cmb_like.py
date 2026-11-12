@@ -173,19 +173,13 @@ class MultiFrequency(GaussianLikelihood):
     def get_unbinned_model(self, theta, cls, foregrounds):
         """ Project (cls) from (xy, ell) to (xy, ell, exp1, exp2) and add
             foregrounds."""
-        spec = jnp.stack([
-            cls[xy][self.ells] for xy in self.requested_cls
+        ix = jnp.array([
+            foregrounds["experiments"].index(e) for e in self.experiments
         ])
-        spec = jnp.broadcast_to(spec[:, :, None, None],
-                                (*spec.shape, len(self.experiments),
-                                 len(self.experiments)))
-
-        for i, cl in enumerate(self.requested_cls):
-            for j, exp1 in enumerate(self.experiments):
-                for k, exp2 in enumerate(self.experiments):
-                    spec = spec.at[i, :, j, k].add(
-                        foregrounds[cl, exp1, exp2][self.ells]
-                    )
+        spec = jnp.stack([
+            cls[xy][self.ells, None, None] + foregrounds[xy][jnp.ix_(self.ells, ix, ix)]
+            for xy in self.requested_cls
+        ])
 
         return self.calibrate_spectra(spec, theta)
 
@@ -370,3 +364,11 @@ class CMBNull(MultiFrequency):
     def loglike(self, theta, /, **kwargs):
         chi2 = self.chisquare(theta, **kwargs)
         return -0.5 * chi2 + self.logp_const
+
+    def fisher(self, theta, /, **kwargs):
+        M = self.design_matrix(theta, **kwargs)
+        J = jax.jacfwd(lambda x: self.get_model(x, **kwargs))(theta)
+        Si = self.inv_cov
+        S = Si - Si @ M @ jnp.linalg.inv(M.T @ Si @ M) @ M.T @ Si
+
+        return J.T @ S @ J

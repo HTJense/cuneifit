@@ -177,7 +177,9 @@ class BandpowerForegrounds(Theory):
     def get_foregrounds(self, theta):
         nu, bp = self.apply_bandpass_shifts(theta[self.bp_index])
 
-        foregrounds = {}
+        foregrounds = {
+            "experiments": self.experiments
+        }
 
         for cl in self.foreground_components:
             fg_total = jnp.zeros((self.lmax+1, len(self.experiments),
@@ -190,9 +192,7 @@ class BandpowerForegrounds(Theory):
                     fg(self.ells, nu, bp, theta_fg)
                 )
 
-            for i, exp1 in enumerate(self.experiments):
-                for j, exp2 in enumerate(self.experiments):
-                    foregrounds[cl, exp1, exp2] = fg_total[:, i, j]
+            foregrounds[cl] = fg_total
 
         return foregrounds
 

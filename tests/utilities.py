@@ -89,28 +89,28 @@ test_dr6_parameters = test_cosmopower_parameters | {
     "a_c": 3.7,
     "a_p": 7.7,
     "beta_cib": 1.9,
-    "xi": 0.1,
-    "a_s": 2.8,
+    "xi": 0.09,
+    "a_s": 2.9,
     "beta_s": -2.8,
-    "a_pste": -0.025,
+    "a_pste": -0.026,
     "a_psee": 0.02,
 
     "a_gtt": 7.95,
     "a_gte": 0.423,
     "a_gee": 0.1681,
 
+    "alpha_c": 0.8,
+    "alpha_p": 1.0,
+    "alpha_s": 1.0,
     "alpha_dT": -0.6,
     "alpha_dE": -0.4,
-    "alpha_s": 1.0,
     "T_effd": 19.6,
     "T_d": 9.7,
     "beta_d": 1.5,
-    "alpha_p": 1.0,
-    "alpha_c": 0.8,
 
     "calG_all": 1.0,
 
-    "cal_dr6_pa4_f220": 0.98,
+    "cal_dr6_pa4_f220": 1.0,
     "cal_dr6_pa5_f090": 1.0,
     "cal_dr6_pa5_f150": 1.0,
     "cal_dr6_pa6_f090": 1.0,
@@ -122,10 +122,10 @@ test_dr6_parameters = test_cosmopower_parameters | {
     "calE_dr6_pa6_f090": 1.0,
     "calE_dr6_pa6_f150": 1.0,
 
-    "bandint_shift_dr6_pa4_f220": 5.0,
-    "bandint_shift_dr6_pa5_f090": 1.0,
+    "bandint_shift_dr6_pa4_f220": 0.0,
+    "bandint_shift_dr6_pa5_f090": 0.0,
     "bandint_shift_dr6_pa5_f150": 0.0,
-    "bandint_shift_dr6_pa6_f090": -1.0,
+    "bandint_shift_dr6_pa6_f090": 0.0,
     "bandint_shift_dr6_pa6_f150": 0.0,
 }
 
@@ -135,8 +135,8 @@ test_dr6_lite_parameters = test_cosmopower_parameters | {
     "calP": 0.95,
 }
 
-test_dr6_logpost = -3106.249
-test_dr6_chi2 = 1922.1550
+test_dr6_logpost = -3359.0405
+test_dr6_chi2 = 2402.4006
 
 test_dr6_lite_logpost = -590.1816
 test_dr6_lite_chi2 = 949.8227

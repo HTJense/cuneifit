@@ -11,7 +11,7 @@ class Moped(MultiFrequency):
 
         moped_file = resolve_data(self.config["moped_file"])
         self.moped_B = jnp.array(np.loadtxt(moped_file))
-        self.covariance = jnp.eye(self.covariance.shape)
+        self.covariance = jnp.eye(self.covariance.shape[0])
         self.logp_const = -0.5 * np.log(2. * np.pi) * len(self.data_vec)
 
     def get_model(self, theta, /, **kwargs):

@@ -399,6 +399,11 @@ class Pipeline:
         tqdm
         opt_args : dict
             Any arguments that get passed to the :code:`optax` optimizer class.
+        
+        Return
+        ------
+        chain : xarray.DataTree
+            An arviz-compatible chain dataset.
         """
         import optax
 
@@ -535,8 +540,8 @@ class Pipeline:
                check_every: int = None, converge_target: dict = None,
                num_samplers: int = 2, method: str = "nuts", rng_key=None,
                kernel_args=None, warmup_steps: int = 0,
-               start_spread: float = 0.2, tqdm=None, output: str = None
-               ) -> tuple[np.ndarray, np.ndarray]:
+               start_spread: float = 0.2, tqdm=None, output: str = None,
+               plot: bool = False) -> tuple[np.ndarray, np.ndarray]:
         """Sample a chain using a BlackJAX sampler (e.g. NUTS or HMC).
 
         Parameters
@@ -573,7 +578,13 @@ class Pipeline:
             initialization. See the :code:`blackjax` documentation for more
             information.
         rng_key
-        tqdm
+            A jax random generator key. If not given, will generate a random
+            key.
+        tqdm : Callable
+            A callback function for a tqdm progress bar. If not given, will
+            not show a progress bar.
+        plot : bool
+            Generate arviz plots on the fly.
         """
         import blackjax
         import arviz as az
@@ -825,7 +836,7 @@ class Pipeline:
                     for key in info_keys
                 }
 
-            idata = az.from_dict({
+            chain_data = az.from_dict({
                 "posterior": {
                     p: all_positions[..., i]
                     for i, p in enumerate(self.parameters)
@@ -839,20 +850,20 @@ class Pipeline:
             })
 
             if chain_output is not None:
-                # TODO: Replace this by an append method instead.
-                # (should only write to a file on the first write,
-                # then append every time after.
-                for i, (logp, x) in enumerate(
-                    zip(all_logdensities, all_positions)
-                ):
-                    np.savetxt(
-                        chain_output % (i+1), np.c_[logp, x], delimiter="\t",
-                        fmt=["%.5f"] + ["%.5e"] * len(self.parameters),
-                        header=("log-posterior " + " ".join(self.parameters))
-                    )
+                chain_data.to_netcdf(output + ".nc")
+
+            if plot:
+                fig = az.plot_trace_dist(chain_data, compact=False, kind="kde")
+                fig.savefig(output + "_trace.pdf", bbox_inches="tight")
+
+                fig = az.plot_rank(chain_data)
+                fig.savefig(output + "_rank.pdf", bbox_inches="tight")
+
+                fig = az.plot_convergence_dist(chain_data)
+                fig.savefig(output + "_converge.pdf", bbox_inches="tight")
 
             # Perform a full convergence check and post output.
-            diagnostics, converged = test_convergence(idata)
+            diagnostics, converged = test_convergence(chain_data)
 
             mean_acc_rate = np.mean(infos["acceptance_rate"])
             mean_int_steps = np.mean(infos["num_integration_steps"])
@@ -874,7 +885,4 @@ class Pipeline:
                 logger.info("Maximum step count reached.")
                 done = True
 
-        logdensities = np.asarray(all_logdensities)
-        positions = np.asarray(all_positions)
-
-        return logdensities, positions
+        return chain_data
