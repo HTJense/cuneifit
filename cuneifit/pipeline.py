@@ -84,6 +84,7 @@ class Pipeline:
         self.models = None
 
         self.restrict({}, include_defaults=True)
+        self.jeffreys = False
 
     def restrict(self, theta_fixed: dict, include_defaults: bool = True):
         """ Mark any set of parameters as "fixed" for gradient computation.
@@ -225,7 +226,13 @@ class Pipeline:
         logpi = 0.0
         if self.prior is not None:
             theta_full = self.expand(theta)
-            logpi = self.prior.logprior(theta_full[self.prior_indices])
+            logpi += self.prior.logprior(theta_full[self.prior_indices])
+
+        if self.jeffreys:
+            F = self.fisher(theta)
+            F = (F + F.T) / 2.
+            sgn, det = jnp.linalg.slogdet(F)
+            logpi += jnp.where(sgn > 0, det / 2., -jnp.inf)
 
         return logpi
 
@@ -618,6 +625,14 @@ class Pipeline:
 
         def logpost_z(z):
             return self.logposterior(theta_z(z))
+        
+        @jax.jit
+        def loglike_z(z):
+            return self.loglike(theta_z(z))
+
+        @jax.jit
+        def logprior_z(z):
+            return self.logprior(theta_z(z))
 
         z0 = jnp.zeros_like(theta_start)
 
@@ -704,8 +719,7 @@ class Pipeline:
         total_steps = 0
         done = False
 
-        all_logdensities = None
-        all_positions = None
+        all_data = None
         all_infos = None
 
         # Initialize sharding setup.
@@ -767,12 +781,18 @@ class Pipeline:
                 key, sample_key = jax.random.split(key)
                 state, info = kernel(sample_key, state)
                 info = process_info(info)
-                return (state, key), (state.logdensity, state.position, info)
 
-            (state, key), (logp, pos, info) = jax.lax.scan(
+                result = (
+                    state.logdensity, loglike_z(state.position),
+                    logprior_z(state.position), state.position, info
+                )
+
+                return (state, key), result
+
+            (state, key), (logp, logl, logpi, pos, info) = jax.lax.scan(
                 step, (state, key), None, length=num_samples
             )
-            return key, state, logp, pos, info
+            return key, state, logp, logl, logpi, pos, info
 
         def shard_chains(keys, local_states):
             return jax.vmap(
@@ -799,6 +819,8 @@ class Pipeline:
                     PartitionSpec("chain"),
                     state_spec,
                     PartitionSpec("chain", None),
+                    PartitionSpec("chain", None),
+                    PartitionSpec("chain", None),
                     PartitionSpec("chain", None, None),
                     info_spec,
                 ),
@@ -809,28 +831,32 @@ class Pipeline:
         while not done:
             # Sampling!
             with blackjax.progress_bar(label="Sampling"):
-                chain_keys, states, logdensities, positions, infos = \
-                    parallel_sampling(chain_keys, states)
+                results = parallel_sampling(chain_keys, states)
+                chain_keys, states, logpost, loglike, logpi, positions, \
+                    infos = results
                 positions.block_until_ready()
 
             th_pos = positions @ L.T + theta_off
 
             total_steps += check_every
             infos = jax.tree.map(np.asarray, infos)
-            logdensities = np.asarray(logdensities)
-            positions = np.asarray(th_pos)
 
-            if all_logdensities is None:
-                all_logdensities = logdensities
-                all_positions = positions
+            data = {
+                "loglike": np.asarray(loglike),
+                "logpost": np.asarray(logpost),
+                "logprior": np.asarray(logpi),
+                "positions": np.asarray(th_pos)
+            }
+
+            if all_data is None:
+                all_data = data
                 all_infos = infos
             else:
-                all_logdensities = np.concatenate(
-                    (all_logdensities, logdensities), axis=1
-                )
-                all_positions = np.concatenate(
-                    (all_positions, positions), axis=1
-                )
+                all_data = {
+                    key: np.concatenate((all_data[key], data[key]), axis=1)
+                    for key in all_data
+                }
+
                 all_infos = {
                     key: np.concatenate((all_infos[key], infos[key]), axis=1)
                     for key in info_keys
@@ -838,14 +864,21 @@ class Pipeline:
 
             chain_data = az.from_dict({
                 "posterior": {
-                    p: all_positions[..., i]
+                    p: all_data["positions"][..., i]
                     for i, p in enumerate(self.parameters)
                 },
                 "sample_stats": {
+                    "lp": all_data["logpost"],
                     "energy": all_infos["energy"],
                     "diverging": all_infos["is_divergent"],
                     "acceptance_rate": all_infos["acceptance_rate"],
                     "n_steps": all_infos["num_integration_steps"],
+                },
+                "log_likelihood": {
+                    "obs": all_data["loglike"],
+                },
+                "log_prior": {
+                    "obs": all_data["logprior"],
                 },
             })
 

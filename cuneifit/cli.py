@@ -92,6 +92,7 @@ def main(argv: list[str] | None = None) -> int:
         components.append(prior)
 
     pipeline = cuneifit.Pipeline(*components)
+    pipeline.jeffreys = run_config.get("jeffreys", False)
 
     # Set up the parameter restrictions.
     restrict = pipeline.get_default_restrictions()
