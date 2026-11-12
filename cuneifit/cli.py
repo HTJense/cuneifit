@@ -93,6 +93,7 @@ def main(argv: list[str] | None = None) -> int:
 
     pipeline = cuneifit.Pipeline(*components)
     pipeline.jeffreys = run_config.get("jeffreys", False)
+    pipeline.add_bounds(run_config.get("bounds", {}))
 
     # Set up the parameter restrictions.
     restrict = pipeline.get_default_restrictions()
@@ -193,12 +194,14 @@ def main(argv: list[str] | None = None) -> int:
 
         converge_target = chain_args.get("converge_target")
         check_every = chain_args.get("check_every")
+        prior_samples = chain_args.get("prior_samples", 0)
 
         pipeline.sample(
             theta, num_steps=n_samples, num_samplers=n_runners, method=method,
             warmup_steps=warmup_steps, kernel_args=kernel_args,
             converge_target=converge_target, check_every=check_every,
-            start_spread=start_spread, tqdm=tqdm, output=output, plot=args.plot
+            start_spread=start_spread, tqdm=tqdm, output=output,
+            plot=args.plot, prior_samples=prior_samples,
         )
 
     logger.info("Done.")

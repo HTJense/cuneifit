@@ -85,6 +85,10 @@ class Pipeline:
 
         self.restrict({}, include_defaults=True)
         self.jeffreys = False
+        self.bounds = {}
+
+    def add_bounds(self, bounds):
+        self.bounds.update(bounds)
 
     def restrict(self, theta_fixed: dict, include_defaults: bool = True):
         """ Mark any set of parameters as "fixed" for gradient computation.
@@ -541,6 +545,7 @@ class Pipeline:
 
         thetas = [theta for _, theta in sorted(minima, key=lambda x: x[0])]
         logpost = [logp for logp, _ in sorted(minima, key=lambda x: x[0])]
+
         return logpost, thetas
 
     def sample(self, theta_start: jnp.ndarray, num_steps: int = None,
@@ -548,7 +553,8 @@ class Pipeline:
                num_samplers: int = 2, method: str = "nuts", rng_key=None,
                kernel_args=None, warmup_steps: int = 0,
                start_spread: float = 0.2, tqdm=None, output: str = None,
-               plot: bool = False) -> tuple[np.ndarray, np.ndarray]:
+               plot: bool = False, prior_samples: int = 0
+               ) -> "xarray.DataTree":
         """Sample a chain using a BlackJAX sampler (e.g. NUTS or HMC).
 
         Parameters
@@ -592,6 +598,14 @@ class Pipeline:
             not show a progress bar.
         plot : bool
             Generate arviz plots on the fly.
+        prior_samples : int
+            Include a number of samples from the prior volume to estimate the
+            prior contribution.
+
+        Return
+        ------
+        chain : xarray.DataTree
+            The chain data.
         """
         import blackjax
         import arviz as az
@@ -602,7 +616,8 @@ class Pipeline:
         if kernel_args is None:
             kernel_args = {}
         if tqdm is None:
-            tqdm = lambda x, **kwargs: x  # noqa: E731
+            def tqdm(x, **kwargs):
+                return x
         if check_every is None:
             check_every = 10 * len(self.parameters)
         if num_steps is None:
@@ -610,7 +625,7 @@ class Pipeline:
         if converge_target is None:
             converge_target = {"Rhat": 1.01}
 
-        assert num_samplers > 1, ("Must run at least 2 samplers.")
+        assert num_samplers > 1, "Must run at least 2 samplers."
 
         # Setup coordinate normalization.
         F = self.fisher(theta_start)
@@ -623,9 +638,6 @@ class Pipeline:
         def theta_z(z):
             return L @ z + theta_off
 
-        def logpost_z(z):
-            return self.logposterior(theta_z(z))
-        
         @jax.jit
         def loglike_z(z):
             return self.loglike(theta_z(z))
@@ -633,6 +645,9 @@ class Pipeline:
         @jax.jit
         def logprior_z(z):
             return self.logprior(theta_z(z))
+
+        def logpost_z(z):
+             return loglike_z(z) + logprior_z(z)
 
         z0 = jnp.zeros_like(theta_start)
 
@@ -644,6 +659,63 @@ class Pipeline:
         positions = []
         if output is not None:
             chain_output = output + ".%d.txt"
+
+        prior_data = {}
+        if prior_samples > 0:
+            logger.info(f"Drawing {prior_samples} samples from the prior.")
+
+            # Check if all parameters have bounds.
+            params = self.parameters.copy()
+            for p in self.parameters:
+                if p in self.bounds:
+                    params.remove(p)
+
+            if len(params) > 0:
+                raise Exception("Cannot draw samples from unbounded "
+                                "parameters: " + ", ".join(params))
+
+            total_ess = 0.0
+            ndim = len(self.parameters)
+            ns = prior_samples * (ndim + 1)
+
+            all_samples = []
+            all_weights = []
+            lower = jnp.array([self.bounds[p][0] for p in self.parameters])
+            upper = jnp.array([self.bounds[p][1] for p in self.parameters])
+            sample_func = jax.jit(jax.vmap(self.logprior))
+
+            while total_ess < prior_samples * ndim:
+                # Construct LHS.
+                rng_key, sample_key = jax.random.split(rng_key)
+                cube = jax.random.uniform(sample_key, shape=(ns, ndim))
+
+                theta_cube = lower + cube * (upper - lower)
+                logpi_cube = sample_func(theta_cube)
+
+                all_samples.append(theta_cube)
+                all_weights.append(logpi_cube)
+
+                logw = jnp.concatenate(all_weights)
+                weights = jax.nn.softmax(logw)
+                total_ess = 1. / jnp.sum(weights ** 2.)
+
+                logger.info(
+                    "Effective sample size per dimension: "
+                    f"{total_ess/ndim:.1f} / {prior_samples}"
+                )
+
+            total_samples = jnp.concatenate(all_samples)
+            rng_key, resample_key = jax.random.split(rng_key)
+            indices = jax.random.choice(
+                resample_key, total_samples.shape[0], shape=(prior_samples,),
+                p=weights,
+            )
+            total_samples = total_samples[indices]
+
+            prior_data["prior"] = {
+                p: total_samples[None, :, i]
+                for i, p in enumerate(self.parameters)
+            }
 
         if warmup_steps > 0:
             # Do a warmup run.
@@ -675,7 +747,8 @@ class Pipeline:
         else:
             # Don't do a warmup run - the user may provide some settings.
             sampler = getattr(blackjax, method)(
-                logpost_z, inverse_mass_matrix=jnp.eye(len(self.parameters)),
+                logpost_z,
+                inverse_mass_matrix=jnp.eye(len(self.parameters)),
                 **kernel_args
             )
             state = sampler.init(z0)
@@ -862,7 +935,7 @@ class Pipeline:
                     for key in info_keys
                 }
 
-            chain_data = az.from_dict({
+            chain_data = {
                 "posterior": {
                     p: all_data["positions"][..., i]
                     for i, p in enumerate(self.parameters)
@@ -880,7 +953,10 @@ class Pipeline:
                 "log_prior": {
                     "obs": all_data["logprior"],
                 },
-            })
+            }
+            chain_data.update(prior_data)
+
+            chain_data = az.from_dict(chain_data)
 
             if chain_output is not None:
                 chain_data.to_netcdf(output + ".nc")
