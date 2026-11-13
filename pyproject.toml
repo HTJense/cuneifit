@@ -12,6 +12,7 @@ dependencies = [
 	"jax",
 	"sacc",
 	"optax",
+	"fgspectra",
 ]
 
 authors = [

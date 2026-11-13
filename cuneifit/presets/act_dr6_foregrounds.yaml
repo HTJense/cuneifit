@@ -24,96 +24,102 @@ bandint_freqs: [220, 90, 150, 90, 150]
 components:
   tt:
     kSZ:
-      CrossProductModel:
-        - TemplateCl:
-            filename: cl_ksz_bat.dat
+      FactorizedCrossSpectrum:
         - ConstantSED:
+        - PowerSpectrumFromFile:
+            filenames: ksz_bat
       params:
         - a_kSZ
     tSZ_and_CIB:
-      CorrelatedCrossProductModel:
-        - RescaledTemplateCl:
-            filename: cl_tsz_150_bat.dat
-        - RescaledTemplateCl:
-            filename: cl_cib_Choi2020.dat
+      CorrelatedCrossSpectrum:
+        - ThermalSZ:
+        - ModifiedBlackBody:
+        - PowerLawRescaledTemplate:
+            filenames: tsz_150_bat
+        - PowerLawRescaledTemplate:
+            filenames: cib_Choi2020
             alpha_0: 0.8
-        - TemplateCl:
-            filename: cl_sz_x_cib.dat
-        - ThermalSZSED:
-        - ModifiedBlackBodySED:
+        - PowerSpectrumFromFile:
+            filenames: sz_x_cib
+        
       params:
+        - T_d
+        - beta_cib
         - a_tSZ
         - alpha_tSZ
         - a_c
         - alpha_c
         - xi
-        - beta_cib
-        - T_d
     cibp:
-      CrossProductModel:
-        - PoissonCl:
-        - ModifiedBlackBodySED:
+      FactorizedCrossSpectrum:
+        - ModifiedBlackBody:
+        - Poisson:
       params:
+        - T_d
+        - beta_cib
         - a_p
         - alpha_p
-        - beta_cib
-        - T_d
     radio:
-      CrossProductModel:
-        - PoissonCl:
+      FactorizedCrossSpectrum:
         - PowerLawSED:
+        - Poisson:
       params:
+        - beta_s
         - a_s
         - alpha_s
-        - beta_s
     dust:
-      CrossProductModel:
-        - PowerLawCl:
+      FactorizedCrossSpectrum:
+        - ModifiedBlackBody:
+        - PowerLaw:
             ell_0: 500
-        - ModifiedBlackBodySED:
       params:
+        - T_effd
+        - beta_d
         - a_gtt
         - alpha_dT
-        - beta_d
-        - T_effd
   te:
     radio:
-      CrossProductModel:
-        - PoissonCl:
+      FactorizedCrossSpectrumTE:
         - PowerLawSED:
+        - PowerLawSED:
+        - Poisson:
       params:
+        - beta_s
+        - beta_s
         - a_pste
         - alpha_s
-        - beta_s
     dust:
-      CrossProductModel:
-        - PowerLawCl:
+      FactorizedCrossSpectrumTE:
+        - ModifiedBlackBody:
+        - ModifiedBlackBody:
+        - PowerLaw:
             ell_0: 500
-        - ModifiedBlackBodySED:
       params:
+        - T_effd
+        - beta_d
+        - T_effd
+        - beta_d
         - a_gte
         - alpha_dE
-        - beta_d
-        - T_effd
   ee:
     radio:
-      CrossProductModel:
-        - PoissonCl:
+      FactorizedCrossSpectrum:
         - PowerLawSED:
+        - Poisson:
       params:
+        - beta_s
         - a_psee
         - alpha_s
-        - beta_s
     dust:
-      CrossProductModel:
-        - PowerLawCl:
+      FactorizedCrossSpectrum:
+        - ModifiedBlackBody:
+        - PowerLaw:
             ell_0: 500
-        - ModifiedBlackBodySED:
       params:
+        - T_effd
+        - beta_d
         - a_gee
         - alpha_dE
-        - beta_d
-        - T_effd
 
 restrict:
   T_d: 9.6

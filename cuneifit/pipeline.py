@@ -116,7 +116,11 @@ class Pipeline:
 
         self.parameters = self.parameters_full.copy()
         for p in restrict:
-            self.parameters.remove(p)
+            if p not in self.parameters_full:
+                raise ValueError(f"Cannot restrict parameter {p}: not found "
+                                 "in full parameter set.")
+            if p in self.parameters:
+                self.parameters.remove(p)
 
         self.theta_default = jnp.array([
             restrict.get(p, jnp.nan) for p in self.parameters_full
