@@ -44,8 +44,10 @@ def test_act_dr6_mflike_fiducial(is_github_workflow, emu_dir, dr6_dir):
     theta = jnp.array([utilities.test_dr6_parameters[p]
                        for p in pipeline.parameters])
 
-    assert jnp.isclose(pipeline.logposterior(theta),
-                       utilities.test_dr6_logpost)
+    logpost = pipeline.logposterior(theta)
+    print(f"log-posterior = {logpost}")
+
+    assert jnp.isclose(logpost, utilities.test_dr6_logpost)
 
     theta_cmb = jnp.array([utilities.test_dr6_parameters[p]
                            for p in cmb.parameters])

@@ -8,9 +8,9 @@ from scipy import constants
 from .config import resolve_data
 from .theory import Theory
 
-from . import fg_model as fgm
-from . import fg_power as fgp
-from . import fg_sed as fgf
+from fgspectra import jax as fgm
+from fgspectra import power as fgp
+from fgspectra import frequency as fgf
 
 T_CMB = 2.72548
 
@@ -125,7 +125,8 @@ class BandpowerForegrounds(Theory):
                 mod_name = list(model_config.keys())[0]
                 mod = getattr(fgm, mod_name)
                 model_products = []
-                for product in model_config[mod_name]:
+                product_list = (model_config[mod_name] or [])
+                for product in product_list:
                     tmpl_name = list(product.keys())[0]
                     settings = product[tmpl_name]
                     settings = defaults | (settings or {})
