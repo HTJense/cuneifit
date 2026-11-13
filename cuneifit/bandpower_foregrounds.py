@@ -190,7 +190,7 @@ class BandpowerForegrounds(Theory):
                                self.foreground_components[cl]):
                 theta_fg = theta[idx]
                 fg_total = fg_total.at[self.ells].add(
-                    fg(self.ells, nu, bp, theta_fg)
+                    fg(nu, bp, self.ells, theta_fg)
                 )
 
             foregrounds[cl] = fg_total
