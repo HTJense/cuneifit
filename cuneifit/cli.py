@@ -120,7 +120,6 @@ def main(argv: list[str] | None = None) -> int:
         raise RuntimeError(f"Missing values for parameters {params_missing}.")
 
     theta = pipeline.params_to_vec(run_config["start"])
-    bestfit = None
 
     if (min_args := run_config.get("minimizer")):
         logger.info("Optimizing parameters.")
@@ -168,8 +167,6 @@ def main(argv: list[str] | None = None) -> int:
             fp.write(f"    -log(posterior)  {-logpost:.5f}\n\n")
             for i, p in enumerate(pipeline.parameters):
                 fp.write(f"{p:>20s} {theta[i]:.5e}\n")
-
-        bestfit = theta.copy()
     else:
         F = pipeline.fisher(theta)
         cov = jnp.linalg.inv(F)

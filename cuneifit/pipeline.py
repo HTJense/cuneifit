@@ -410,7 +410,7 @@ class Pipeline:
         tqdm
         opt_args : dict
             Any arguments that get passed to the :code:`optax` optimizer class.
-        
+
         Return
         ------
         chain : xarray.DataTree
@@ -554,7 +554,7 @@ class Pipeline:
                kernel_args=None, warmup_steps: int = 0,
                start_spread: float = 0.2, tqdm=None, output: str = None,
                plot: bool = False, prior_samples: int = 0
-               ) -> "xarray.DataTree":
+               ) -> "xarray.DataTree":  # noqa: F821
         """Sample a chain using a BlackJAX sampler (e.g. NUTS or HMC).
 
         Parameters
@@ -647,7 +647,7 @@ class Pipeline:
             return self.logprior(theta_z(z))
 
         def logpost_z(z):
-             return loglike_z(z) + logprior_z(z)
+            return loglike_z(z) + logprior_z(z)
 
         z0 = jnp.zeros_like(theta_start)
 
@@ -655,8 +655,6 @@ class Pipeline:
             raise RuntimeError(f"Sampling method {method} not found in "
                                "blackjax.")
 
-        logdensities = []
-        positions = []
         if output is not None:
             chain_output = output + ".%d.txt"
 

@@ -177,7 +177,8 @@ class MultiFrequency(GaussianLikelihood):
             foregrounds["experiments"].index(e) for e in self.experiments
         ])
         spec = jnp.stack([
-            cls[xy][self.ells, None, None] + foregrounds[xy][jnp.ix_(self.ells, ix, ix)]
+            cls[xy][self.ells, None, None]
+            + foregrounds[xy][jnp.ix_(self.ells, ix, ix)]
             for xy in self.requested_cls
         ])
 
@@ -364,11 +365,3 @@ class CMBNull(MultiFrequency):
     def loglike(self, theta, /, **kwargs):
         chi2 = self.chisquare(theta, **kwargs)
         return -0.5 * chi2 + self.logp_const
-
-    def fisher(self, theta, /, **kwargs):
-        M = self.design_matrix(theta, **kwargs)
-        J = jax.jacfwd(lambda x: self.get_model(x, **kwargs))(theta)
-        Si = self.inv_cov
-        S = Si - Si @ M @ jnp.linalg.inv(M.T @ Si @ M) @ M.T @ Si
-
-        return J.T @ S @ J
