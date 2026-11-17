@@ -1,5 +1,7 @@
+from functools import partial
 import os
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 import sacc
@@ -133,18 +135,17 @@ class MultiFrequency(GaussianLikelihood):
         return self.cov_L
 
     def bin_spectra(self, spec):
-        model_vec = jnp.zeros_like(self.data_vec)
+        model_vec = []
         for block in self.spec_meta:
-            ids = block["ids"]
             xy = block["spec"]
             ls = block["values"]
             ix, jx = block["ix"]
 
             sub = spec[xy, ls, ix, jx]
 
-            model_vec = model_vec.at[ids].set(block["window"] @ sub)
+            model_vec.append(block["window"] @ sub)
 
-        return model_vec
+        return jnp.concatenate(model_vec)
 
     def calibrate_spectra(self, spectra, theta):
         """ spectra is a (xy, ell, exp1, exp2) array
@@ -174,16 +175,18 @@ class MultiFrequency(GaussianLikelihood):
         """ Project (cls) from (xy, ell) to (xy, ell, exp1, exp2) and add
             foregrounds."""
         ix = jnp.array([
-            foregrounds["experiments"].index(e) for e in self.experiments
+            foregrounds.experiments.index(e)
+            for e in self.experiments
         ])
         spec = jnp.stack([
-            cls[xy][self.ells, None, None]
-            + foregrounds[xy][jnp.ix_(self.ells, ix, ix)]
+            getattr(cls, xy)[self.ells, None, None]
+            + getattr(foregrounds, xy)[jnp.ix_(self.ells, ix, ix)]
             for xy in self.requested_cls
         ])
 
         return self.calibrate_spectra(spec, theta)
 
+    @partial(jax.jit, static_argnums=(0,))
     def get_model(self, theta, *, cls, foregrounds, **kwargs):
         """ Get the binned data model. """
         model = self.get_unbinned_model(theta, cls, foregrounds)
@@ -225,7 +228,7 @@ class MultiFrequency(GaussianLikelihood):
         return M
 
 
-class CMBLite(GaussianLikelihood):
+class CMBOnly(GaussianLikelihood):
     def __init__(self, config: str | dict | None = None, **kwargs):
         super().__init__(config, **kwargs)
 
@@ -239,7 +242,7 @@ class CMBLite(GaussianLikelihood):
             t = sacc.Sacc.load_fits(os.path.join(data_path,
                                                  self.config["cov_Bbl_file"]))
 
-        self.requested_cls = self.config["requested_cls"]
+        self.requested_cls = tuple(self.config["requested_cls"])
 
         data_vec = []
         data_indices = []
@@ -329,7 +332,7 @@ class CMBLite(GaussianLikelihood):
     def get_unbinned_model(self, theta, cls):
         """ Project (cls) to (xy, ell) and calibrate. """
         spec = jnp.stack([
-            cls[xy][self.ells] for xy in self.requested_cls
+            getattr(cls, xy)[self.ells] for xy in self.requested_cls
         ])
 
         return self.calibrate_spectra(spec, theta)
@@ -347,10 +350,10 @@ class CMBNull(MultiFrequency):
 
         self.inv_cov = jnp.linalg.inv(self.covariance)
 
-    def get_model(self, theta, /, *, foregrounds, **kwargs):
+    def get_model(self, theta, /, *, foregrounds, experiments, **kwargs):
         cls = {k: jnp.zeros(self.lmax+1) for k in self.requested_cls}
         return super().get_model(theta, foregrounds=foregrounds, cls=cls,
-                                 **kwargs)
+                                 experiments=experiments, **kwargs)
 
     def chisquare(self, theta, /, **kwargs):
         m = self.get_model(theta, **kwargs)

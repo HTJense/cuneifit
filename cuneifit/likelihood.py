@@ -64,11 +64,11 @@ class Likelihood(ABC):
 
 
 class GaussianLikelihood(Likelihood):
-    """A Gaussian likelihood class.
+    r"""A Gaussian likelihood class.
 
     This likelihood is a specialization of the form
-    :math:`\\ln\\mathcal{L} \\propto -(d - \\mu(\\theta)^T \\Sigma^{-1}
-    (d - \\mu(\\theta)) / 2`,
+    :math:`\ln\mathcal{L} \propto -(d - \mu(\theta)^T \Sigma(\theta)^{-1}
+    (d - \mu(\theta)) / 2`,
     with a series of associated functions to improve computational speed.
     """
     data_vec: jnp.ndarray

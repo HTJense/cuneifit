@@ -1,8 +1,20 @@
+from dataclasses import dataclass, field
+from functools import partial
+
+import jax
 from jax import numpy as jnp
 
 from .theory import Theory
 
 T_CMB = 2.72548e6
+
+@jax.tree_util.register_dataclass
+@dataclass
+class CMB:
+    tt: jnp.ndarray
+    te: jnp.ndarray
+    ee: jnp.ndarray
+    bb: jnp.ndarray
 
 
 def _emulators_to_jax(parser, desired=["tt", "te", "ee"]):
@@ -69,6 +81,7 @@ class Cosmopower(Theory):
         parser = cp.YAMLParser(self.config["yaml_file"],
                                root_dir=self.config.get("root_dir", None))
         desired = self.config.get("desired", ["tt", "te", "ee"])
+        self.lmax = self.config.get("lmax", 3000)
 
         self.parameters = []
         self.emulators = _emulators_to_jax(parser, desired=desired)
@@ -83,17 +96,28 @@ class Cosmopower(Theory):
             for xy in self.emulators
         }
 
-    def compute(self, theta, /, **kwargs) -> dict:
-        cls = {}
+    @partial(jax.jit, static_argnums=(0,))
+    def get_cls(self, theta, /, **kwargs) -> dict:
+        cell = CMB(
+            tt = jnp.zeros(self.lmax+1),
+            te = jnp.zeros(self.lmax+1),
+            ee = jnp.zeros(self.lmax+1),
+        )
+
         for xy in self.emulators:
             cl = self.emulators[xy].predict(theta[self.indices[xy]])
-            cls[xy] = jnp.zeros(self.emulators[xy].modes.max()+1)
-            cls[xy] = cls[xy].at[self.emulators[xy].modes].set(cl)
 
             if xy in ["tt", "te", "ee", "bb"]:
-                cls[xy] = cls[xy] * (T_CMB ** 2.)
+                cl = cl * (T_CMB ** 2.)
 
-        return {"cls": cls}
+            cls = jnp.zeros(self.emulators[xy].modes.max()+1)
+            cls = cls.at[self.emulators[xy].modes].set(cl)
+            setattr(cell, xy, cls)
+
+        return cell
+
+    def compute(self, theta, /, **kwargs):
+        return {"cls": self.get_cls(theta)}
 
     @property
     def inputs(self) -> tuple[str]:

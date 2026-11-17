@@ -1,10 +1,12 @@
+from functools import partial
+import logging
+from typing import Callable, Optional
+
 import jax
 from jax.sharding import NamedSharding, PartitionSpec
 import jax.numpy as jnp
 import jax.scipy as jsc
-import logging
 import numpy as np
-from typing import Callable, Optional
 
 from .likelihood import Likelihood, GaussianLikelihood
 from .prior import Prior
@@ -171,6 +173,7 @@ class Pipeline:
         """
         return {p: theta[i] for i, p in enumerate(self.parameters)}
 
+    @partial(jax.jit, static_argnums=(0,))
     def expand(self, theta_free: jnp.ndarray) -> jnp.ndarray:
         if theta_free.shape == self.theta_default.shape:
             # This vector has already been expanded, so don't do it again!
@@ -178,6 +181,7 @@ class Pipeline:
 
         return self.theta_default.at[self.free_to_full].set(theta_free)
 
+    @partial(jax.jit, static_argnums=(0,))
     def compute(self, theta: jnp.ndarray | dict) -> dict:
         """ Iterate through all Theory objects and compute their products.
 
@@ -217,6 +221,7 @@ class Pipeline:
 
         return products
 
+    @partial(jax.jit, static_argnums=(0,))
     def logprior(self, theta: jnp.ndarray) -> float:
         """ Compute the log-prior contribution.
 
@@ -240,6 +245,7 @@ class Pipeline:
 
         return logpi
 
+    @partial(jax.jit, static_argnums=(0,))
     def loglike(self, theta: jnp.ndarray) -> float:
         """ Compute all likelihood values and yield the log-likelihood.
 
@@ -260,6 +266,7 @@ class Pipeline:
 
         return loglike
 
+    @partial(jax.jit, static_argnums=(0,))
     def logposterior(self, theta: jnp.ndarray) -> float:
         """ Alias for `logprior(theta) + loglike(theta)`.
 
@@ -272,6 +279,7 @@ class Pipeline:
         """
         return self.logprior(theta) + self.loglike(theta)
 
+    @partial(jax.jit, static_argnums=(0,))
     def logposterior_dict(self, params: dict) -> float:
         """ Compute the log-posterior, using a dictionary as input. Useful for
             jax pytree functions.
@@ -300,7 +308,7 @@ class Pipeline:
             self.models = []
 
             for idx, like in zip(self.like_indices, self.likelihoods):
-                self.models.append(make_model(like, idx))
+                self.models.append(jax.jit(make_model(like, idx)))
 
         return self.models
 
@@ -314,10 +322,11 @@ class Pipeline:
 
             for idx, mod, like in zip(self.like_indices, models,
                                       self.likelihoods):
-                self.jacobians.append(jax.jacfwd(mod))
+                self.jacobians.append(jax.jit(jax.jacfwd(mod)))
 
         return self.jacobians
 
+    @partial(jax.jit, static_argnums=(0,))
     def fisher(self, theta: jnp.ndarray) -> jnp.ndarray:
         """ Compute the Fisher matrix of this pipeline at a given parameter
             set.
@@ -462,6 +471,12 @@ class Pipeline:
         theta_from_z = lambda z: theta_start + L @ z  # noqa: E731
         loss = lambda z: -self.logposterior(theta_from_z(z))  # noqa: E731
 
+        if is_lbfgs:
+            value_and_grad = jax.jit(optax.value_and_grad_from_state(loss))
+        else:
+            value_and_grad = jax.jit(jax.value_and_grad(loss))
+
+        # TODO: vmap this loop
         for i in it_runs:
             z = starting_points[i]
 
@@ -473,11 +488,6 @@ class Pipeline:
                                    "a valid method.")
             state = optimizer.init(z)
 
-            if is_lbfgs:
-                value_and_grad = jax.jit(optax.value_and_grad_from_state(loss))
-            else:
-                value_and_grad = jax.jit(jax.value_and_grad(loss))
-
             best = z
             best_lp = loss(best)
             wait = 0
@@ -487,6 +497,7 @@ class Pipeline:
             if tqdm is not None:
                 tbar = tqdm(total=max_steps, leave=False)
 
+            # TODO: lax.while_loop
             while True:
                 steps += 1
                 if is_lbfgs:
@@ -623,7 +634,7 @@ class Pipeline:
         if num_steps is None:
             num_steps = check_every * (len(self.parameters) + 5)
         if converge_target is None:
-            converge_target = {"Rhat": 1.01}
+            converge_target = {"Rhatm1": 1e-2}
 
         assert num_samplers > 1, "Must run at least 2 samplers."
 
@@ -853,10 +864,11 @@ class Pipeline:
                 state, info = kernel(sample_key, state)
                 info = process_info(info)
 
-                result = (
-                    state.logdensity, loglike_z(state.position),
-                    logprior_z(state.position), state.position, info
-                )
+                logpost = state.logdensity
+                logprior = logprior_z(state.position)
+                loglike = logpost - logprior
+
+                result = (logpost, loglike, logprior, state.position, info)
 
                 return (state, key), result
 
