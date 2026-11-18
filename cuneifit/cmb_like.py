@@ -299,19 +299,29 @@ class CMBOnly(GaussianLikelihood):
             + np.linalg.slogdet(self.covariance)[1]
         )
         self.covariance_L = jnp.linalg.cholesky(self.covariance)
+        self.data_xi = jsc.linalg.solve_triangular(
+            self.covariance_L, self.data_vec, lower=True
+        )
+
+    def get_covariance_cholesky(self, theta, **kwargs):
+        return self.covariance_L
+
+    def get_whitened_residual(self, theta, /, **kwargs):
+        mu = self.get_model(theta, **kwargs)
+        y = jsc.linalg.solve_triangular(self.covariance_L, mu, lower=True)
+        return self.data_xi - y
 
     def bin_spectra(self, spec):
-        model_vec = jnp.zeros_like(self.data_vec)
+        model_vec = []
         for block in self.spec_meta:
-            ids = block["ids"]
             xy = block["spec"]
             ls = block["values"]
 
             sub = spec[xy, ls]
 
-            model_vec = model_vec.at[ids].set(sub @ block["window"])
+            model_vec.append(sub @ block["window"])
 
-        return model_vec
+        return jnp.concatenate(model_vec)
 
     def calibrate_spectra(self, spectra, theta):
         """ Given an (xy, ell) array, bin into an (N_bin,) model vector. """
