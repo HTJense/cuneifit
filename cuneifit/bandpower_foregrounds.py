@@ -31,10 +31,8 @@ def _trapz_weights(nu):
 @jax.tree_util.register_dataclass
 @dataclass
 class Foregrounds:
-    tt: jnp.ndarray
-    te: jnp.ndarray
-    ee: jnp.ndarray
-    experiments: tuple = field(metadata=dict(static=True))
+    spectra: dict
+    experiments: tuple = field(metadata={"static": True})
 
 
 class BandpowerForegrounds(Theory):
@@ -188,15 +186,10 @@ class BandpowerForegrounds(Theory):
 
     @partial(jax.jit, static_argnums=(0,))
     def get_foregrounds(self, theta):
-        fg_shape = (self.lmax+1, len(self.experiments), len(self.experiments))
-        result = Foregrounds(
-            tt = jnp.zeros(fg_shape),
-            te = jnp.zeros(fg_shape),
-            ee = jnp.zeros(fg_shape),
-            experiments = self.experiments,
-        )
+        fg_shape = (len(self.experiments), len(self.experiments), self.lmax+1)
 
         nu, bp = self.apply_bandpass_shifts(theta[self.bp_index])
+        foregrounds = {}
 
         for cl in self.foreground_components:
             fg_total = jnp.zeros(fg_shape)
@@ -204,13 +197,13 @@ class BandpowerForegrounds(Theory):
             for idx, fg in zip(self.fg_indices[cl],
                                self.foreground_components[cl]):
                 theta_fg = theta[idx]
-                fg_total = fg_total.at[self.ells].add(
+                fg_total = fg_total.at[..., self.ells].add(
                     fg(self.ells, nu, bp, theta_fg)
                 )
 
-            setattr(result, cl, fg_total)
+            foregrounds[cl] = fg_total
 
-        return result
+        return Foregrounds(spectra=foregrounds, experiments=self.experiments)
 
     def compute(self, theta, /, **kwargs):
         return {"foregrounds": self.get_foregrounds(theta)}

@@ -3,9 +3,9 @@ import logging
 from typing import Callable, Optional
 
 import jax
-from jax.sharding import NamedSharding, PartitionSpec
 import jax.numpy as jnp
 import jax.scipy as jsc
+from jax.sharding import NamedSharding, PartitionSpec
 import numpy as np
 
 from .likelihood import Likelihood, GaussianLikelihood
@@ -144,6 +144,9 @@ class Pipeline:
         # Clear the Jacobians cache (they should be re-built).
         self.jacobians = None
         self.models = None
+
+        # Clear the jax cache (forces re-computation of jitted functions).
+        jax.clear_caches()
 
     def get_default_restrictions(self) -> dict:
         restrict = {}

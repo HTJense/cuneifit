@@ -25,7 +25,7 @@ def test_act_dr6_mflike_preset(is_github_workflow, dr6_dir):
 
 def test_act_dr6_lite_preset(dr6_dir):
     cuneifit.config.add_data_path(dr6_dir)
-    cuneifit.CMBLite("act_dr6_cmbonly")
+    cuneifit.CMBOnly("act_dr6_cmbonly")
 
 
 @pytest.mark.skipif(not CP_IMPORT_OK, reason="Cosmopower not installed.")
@@ -68,7 +68,7 @@ def test_act_dr6_lite_fiducial(emu_dir, dr6_dir):
 
     cmb = cuneifit.Cosmopower(yaml_file=os.path.join(emu_dir, parser_filename),
                               root_dir=emu_dir)
-    dr6 = cuneifit.CMBLite("act_dr6_cmbonly")
+    dr6 = cuneifit.CMBOnly("act_dr6_cmbonly")
     pipeline = cuneifit.Pipeline(cmb, dr6)
 
     theta = jnp.array([utilities.test_dr6_lite_parameters[p]

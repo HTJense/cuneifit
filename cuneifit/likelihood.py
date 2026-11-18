@@ -111,3 +111,4 @@ class GaussianLikelihood(Likelihood):
         W = jsc.linalg.solve_triangular(L, J, lower=True)
 
         return W.T @ W
+

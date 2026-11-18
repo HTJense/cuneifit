@@ -3,6 +3,7 @@ import os
 
 import jax
 import jax.numpy as jnp
+import jax.scipy as jsc
 import numpy as np
 import sacc
 
@@ -114,7 +115,7 @@ class MultiFrequency(GaussianLikelihood):
                     "ids": i0 + np.arange(len(ind[m])),
                     "leff": ell[m],
                     "spec": spec,
-                    "window": jnp.array(bpw.weight.T[m].astype(float)),
+                    "window": jnp.array(bpw.weight[:, m].astype(float)),
                     "values": jnp.array(bpw.values.astype(int))
                 })
                 i0 += len(ind[m])
@@ -129,10 +130,18 @@ class MultiFrequency(GaussianLikelihood):
             np.log(2. * np.pi) * len(self.data_vec)
             + np.linalg.slogdet(self.covariance)[1]
         )
-        self.cov_L = jnp.linalg.cholesky(self.covariance)
+        self.covariance_L = jnp.linalg.cholesky(self.covariance)
+        self.data_xi = jsc.linalg.solve_triangular(
+            self.covariance_L, self.data_vec, lower=True
+        )
 
     def get_covariance_cholesky(self, theta, **kwargs):
-        return self.cov_L
+        return self.covariance_L
+
+    def get_whitened_residual(self, theta, /, **kwargs):
+        mu = self.get_model(theta, **kwargs)
+        y = jsc.linalg.solve_triangular(self.covariance_L, mu, lower=True)
+        return self.data_xi - y
 
     def bin_spectra(self, spec):
         model_vec = []
@@ -141,9 +150,9 @@ class MultiFrequency(GaussianLikelihood):
             ls = block["values"]
             ix, jx = block["ix"]
 
-            sub = spec[xy, ls, ix, jx]
+            sub = spec[xy, ix, jx, ls]
 
-            model_vec.append(block["window"] @ sub)
+            model_vec.append(sub @ block["window"])
 
         return jnp.concatenate(model_vec)
 
@@ -157,7 +166,7 @@ class MultiFrequency(GaussianLikelihood):
 
         res = []
         for i, xy in enumerate(self.requested_cls):
-            cal = jnp.tile(calG, spectra[i].shape)
+            cal = jnp.tile(calG, (len(self.experiments), len(self.experiments)))
             if xy[0] == "t":
                 cal *= calT[:, None]
             else:
@@ -167,20 +176,20 @@ class MultiFrequency(GaussianLikelihood):
             else:
                 cal *= calE[None, :]
 
-            res.append(spectra[i] * cal)
+            res.append(spectra[i] * cal[...,None])
 
         return jnp.stack(res)
 
     def get_unbinned_model(self, theta, cls, foregrounds):
-        """ Project (cls) from (xy, ell) to (xy, ell, exp1, exp2) and add
+        """ Project (cls) from (xy, ell) to (xy, exp1, exp2, ell) and add
             foregrounds."""
         ix = jnp.array([
             foregrounds.experiments.index(e)
             for e in self.experiments
         ])
         spec = jnp.stack([
-            getattr(cls, xy)[self.ells, None, None]
-            + getattr(foregrounds, xy)[jnp.ix_(self.ells, ix, ix)]
+            cls.spectra[xy][None, None, self.ells]
+            + foregrounds.spectra[xy][jnp.ix_(ix, ix, self.ells)]
             for xy in self.requested_cls
         ])
 
@@ -274,7 +283,7 @@ class CMBOnly(GaussianLikelihood):
                 "ids": i0 + np.arange(len(ind[m])),
                 "leff": ell[m],
                 "spec": spec,
-                "window": jnp.array(bpw.weight.T[m].astype(float)),
+                "window": jnp.array(bpw.weight[:,m].astype(float)),
                 "values": jnp.array(bpw.values.astype(int))
             })
             i0 += len(ind[m])
@@ -289,10 +298,7 @@ class CMBOnly(GaussianLikelihood):
             np.log(2. * np.pi) * len(self.data_vec)
             + np.linalg.slogdet(self.covariance)[1]
         )
-        self.cov_L = jnp.linalg.cholesky(self.covariance)
-
-    def get_covariance_cholesky(self, theta, **kwargs):
-        return self.cov_L
+        self.covariance_L = jnp.linalg.cholesky(self.covariance)
 
     def bin_spectra(self, spec):
         model_vec = jnp.zeros_like(self.data_vec)
@@ -303,7 +309,7 @@ class CMBOnly(GaussianLikelihood):
 
             sub = spec[xy, ls]
 
-            model_vec = model_vec.at[ids].set(block["window"] @ sub)
+            model_vec = model_vec.at[ids].set(sub @ block["window"])
 
         return model_vec
 
@@ -332,7 +338,7 @@ class CMBOnly(GaussianLikelihood):
     def get_unbinned_model(self, theta, cls):
         """ Project (cls) to (xy, ell) and calibrate. """
         spec = jnp.stack([
-            getattr(cls, xy)[self.ells] for xy in self.requested_cls
+            cls.spectra[xy][self.ells] for xy in self.requested_cls
         ])
 
         return self.calibrate_spectra(spec, theta)

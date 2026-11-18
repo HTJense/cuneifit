@@ -11,10 +11,7 @@ T_CMB = 2.72548e6
 @jax.tree_util.register_dataclass
 @dataclass
 class CMB:
-    tt: jnp.ndarray
-    te: jnp.ndarray
-    ee: jnp.ndarray
-    bb: jnp.ndarray
+    spectra: dict
 
 
 def _emulators_to_jax(parser, desired=["tt", "te", "ee"]):
@@ -98,12 +95,7 @@ class Cosmopower(Theory):
 
     @partial(jax.jit, static_argnums=(0,))
     def get_cls(self, theta, /, **kwargs) -> dict:
-        cell = CMB(
-            tt = jnp.zeros(self.lmax+1),
-            te = jnp.zeros(self.lmax+1),
-            ee = jnp.zeros(self.lmax+1),
-        )
-
+        spectra = {}
         for xy in self.emulators:
             cl = self.emulators[xy].predict(theta[self.indices[xy]])
 
@@ -111,10 +103,9 @@ class Cosmopower(Theory):
                 cl = cl * (T_CMB ** 2.)
 
             cls = jnp.zeros(self.emulators[xy].modes.max()+1)
-            cls = cls.at[self.emulators[xy].modes].set(cl)
-            setattr(cell, xy, cls)
+            spectra[xy] = cls.at[self.emulators[xy].modes].set(cl)
 
-        return cell
+        return CMB(spectra=spectra)
 
     def compute(self, theta, /, **kwargs):
         return {"cls": self.get_cls(theta)}
