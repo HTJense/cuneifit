@@ -19,7 +19,7 @@ class Component(ABC):
             self.default_priors = Prior()
 
             for prior in priors:
-                self.default_priors.add_prior(eval(prior))
+                self.default_priors.add_prior(prior)
 
         self.initialize()
 

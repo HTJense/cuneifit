@@ -62,8 +62,10 @@ class Prior:
         for logpi in priors:
             self.add_prior(logpi)
 
-    def add_prior(self, logpi: Callable[[jnp.ndarray], float], /,
+    def add_prior(self, logpi: str | Callable[[jnp.ndarray], float], /,
                   func_pars: list | None = None):
+        if type(logpi) is str:
+            logpi = eval(logpi)
         self.priors.append(logpi)
 
         if func_pars is None:
