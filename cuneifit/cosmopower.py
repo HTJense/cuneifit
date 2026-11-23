@@ -42,6 +42,8 @@ def _emulators_to_jax(parser, desired=["tt", "te", "ee"]):
 
         emu.weights = list(zip(weights, biases))
         emu.hyper_params = list(zip(alphas, betas))
+        # We handle this manually.
+        emu.log = False
 
         if hasattr(emulators[f"Cl/{xy}"], "n_pcas"):
             # PCA data.
@@ -53,14 +55,14 @@ def _emulators_to_jax(parser, desired=["tt", "te", "ee"]):
             emu.feature_train_std = emulators[f"Cl/{xy}"].pca_std_
             emu.training_mean = emulators[f"Cl/{xy}"].features_mean_
             emu.training_std = emulators[f"Cl/{xy}"].features_std_
-            emu.probe = "custom_log"
+            emu.probe = "custom_pca"
         else:
             # Non-PCA data.
             emu.param_train_mean = emulators[f"Cl/{xy}"].parameters_mean.numpy()  # noqa: E501
             emu.param_train_std = emulators[f"Cl/{xy}"].parameters_std.numpy()
             emu.feature_train_mean = emulators[f"Cl/{xy}"].features_mean.numpy()  # noqa: E501
             emu.feature_train_std = emulators[f"Cl/{xy}"].features_std.numpy()
-            emu.probe = "custom_pca"
+            emu.probe = "custom"
 
         results[xy] = emu
 
@@ -70,18 +72,16 @@ def _emulators_to_jax(parser, desired=["tt", "te", "ee"]):
 class Cosmopower(Theory):
     """A theory object capable of interfacing with Cosmopower-JAX.
     """
-    def __init__(self, config: str | dict | None = None, **kwargs):
-        super().__init__(config, **kwargs)
-
+    def initialize(self):
         import cosmopower as cp
 
-        parser = cp.YAMLParser(self.config["yaml_file"],
+        self.parser = cp.YAMLParser(self.config["yaml_file"],
                                root_dir=self.config.get("root_dir", None))
         desired = self.config.get("desired", ["tt", "te", "ee"])
         self.lmax = self.config.get("lmax", 3000)
 
         self.parameters = []
-        self.emulators = _emulators_to_jax(parser, desired=desired)
+        self.emulators = _emulators_to_jax(self.parser, desired=desired)
         for xy in self.emulators:
             for par in self.emulators[xy].parameters:
                 if par not in self.parameters:
@@ -98,6 +98,9 @@ class Cosmopower(Theory):
         spectra = {}
         for xy in self.emulators:
             cl = self.emulators[xy].predict(theta[self.indices[xy]])
+
+            if self.parser.is_log(f"Cl/{xy}"):
+                cl = jnp.power(10., cl)
 
             if xy in ["tt", "te", "ee", "bb"]:
                 cl = cl * (T_CMB ** 2.)

@@ -9,9 +9,7 @@ from .likelihood import GaussianLikelihood
 
 
 class Lensing(GaussianLikelihood):
-    def __init__(self, config: str | dict | None = None, **kwargs):
-        super().__init__(config, **kwargs)
-
+    def initialize(self):
         data_path = resolve_data(self.config["data_folder"])
         data = sacc.Sacc.load_fits(os.path.join(data_path,
                                                 self.config["data_file"]))

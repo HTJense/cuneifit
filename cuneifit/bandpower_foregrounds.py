@@ -36,9 +36,7 @@ class Foregrounds:
 
 
 class BandpowerForegrounds(Theory):
-    def __init__(self, config: str | dict | None, **kwargs):
-        super().__init__(config, **kwargs)
-
+    def initialize(self, **kwargs):
         self.lmax = self.config["lmax"]
         self.ells = jnp.arange(2, self.lmax+1)
         self.experiments = self.config["experiments"]

@@ -37,9 +37,7 @@ MFLIKE_DATA_TYPES = {
 
 
 class MultiFrequency(GaussianLikelihood):
-    def __init__(self, config: str | dict | None = None, **kwargs):
-        super().__init__(config, **kwargs)
-
+    def initialize(self):
         data_path = resolve_data(self.config["data_folder"])
         s = sacc.Sacc.load_fits(os.path.join(data_path,
                                              self.config["input_file"]))
@@ -130,18 +128,19 @@ class MultiFrequency(GaussianLikelihood):
             np.log(2. * np.pi) * len(self.data_vec)
             + np.linalg.slogdet(self.covariance)[1]
         )
+        self.inv_cov = jnp.linalg.inv(self.covariance)
         self.covariance_L = jnp.linalg.cholesky(self.covariance)
-        self.data_xi = jsc.linalg.solve_triangular(
-            self.covariance_L, self.data_vec, lower=True
-        )
+        self.cov_L_inv = jnp.linalg.cholesky(self.inv_cov)
+        self.data_xi = self.cov_L_inv @ self.data_vec
 
-    def get_covariance_cholesky(self, theta, **kwargs):
-        return self.covariance_L
+    def whiten(self, a, theta, /, **kwargs):
+        return self.cov_L_inv @ a
 
-    def get_whitened_residual(self, theta, /, **kwargs):
+    def chisquare(self, theta, /, **kwargs):
         mu = self.get_model(theta, **kwargs)
-        y = jsc.linalg.solve_triangular(self.covariance_L, mu, lower=True)
-        return self.data_xi - y
+        y = self.whiten(mu, theta, **kwargs)
+        w = y - self.data_xi
+        return jnp.sum(w ** 2)
 
     def bin_spectra(self, spec):
         model_vec = []
@@ -238,9 +237,7 @@ class MultiFrequency(GaussianLikelihood):
 
 
 class CMBOnly(GaussianLikelihood):
-    def __init__(self, config: str | dict | None = None, **kwargs):
-        super().__init__(config, **kwargs)
-
+    def initialize(self):
         data_path = resolve_data(self.config["data_folder"])
         s = sacc.Sacc.load_fits(os.path.join(data_path,
                                              self.config["input_file"]))
@@ -298,18 +295,19 @@ class CMBOnly(GaussianLikelihood):
             np.log(2. * np.pi) * len(self.data_vec)
             + np.linalg.slogdet(self.covariance)[1]
         )
+        self.inv_cov = jnp.linalg.inv(self.covariance)
         self.covariance_L = jnp.linalg.cholesky(self.covariance)
-        self.data_xi = jsc.linalg.solve_triangular(
-            self.covariance_L, self.data_vec, lower=True
-        )
+        self.cov_L_inv = jnp.linalg.cholesky(self.inv_cov)
+        self.data_xi = self.cov_L_inv @ self.data_vec
 
-    def get_covariance_cholesky(self, theta, **kwargs):
-        return self.covariance_L
+    def whiten(self, a, theta, /, **kwargs):
+        return self.cov_L_inv @ a
 
-    def get_whitened_residual(self, theta, /, **kwargs):
+    def chisquare(self, theta, /, **kwargs):
         mu = self.get_model(theta, **kwargs)
-        y = jsc.linalg.solve_triangular(self.covariance_L, mu, lower=True)
-        return self.data_xi - y
+        y = self.whiten(mu, theta, **kwargs)
+        w = y - self.data_xi
+        return jnp.sum(w ** 2)
 
     def bin_spectra(self, spec):
         model_vec = []
@@ -360,8 +358,7 @@ class CMBOnly(GaussianLikelihood):
 
 
 class CMBNull(MultiFrequency):
-    def __init__(self, config: str | dict | None, **kwargs):
-        super().__init__(config, **kwargs)
+    def initialize(self):
         self.n_ig = self.config["n_ig"]
 
         self.inv_cov = jnp.linalg.inv(self.covariance)

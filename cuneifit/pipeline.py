@@ -27,9 +27,6 @@ class Pipeline:
         ----------
         components : list
             A list of components (i.e. Theory and Likelihood objects).
-
-        prior : Optional[Prior]
-            A prior contribution object.
         """
         used_components = []
         for comp in components:
@@ -41,12 +38,15 @@ class Pipeline:
 
         components = used_components
         self.components = components
-        self.priors = [comp for comp in self.components
-                       if isinstance(comp, Prior)]
         self.theories = [comp for comp in self.components
                          if isinstance(comp, Theory)]
         self.likelihoods = [comp for comp in self.components
                             if isinstance(comp, Likelihood)]
+        self.priors = [comp for comp in self.components
+                       if isinstance(comp, Prior)] \
+                       + [comp.default_priors
+                          for comp in self.likelihoods + self.theories
+                          if comp.default_priors is not None]
 
         self.parameters_full = list(dict.fromkeys(
             p for comp in self.components for p in comp.parameters

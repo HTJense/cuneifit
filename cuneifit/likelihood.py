@@ -4,25 +4,12 @@ import jax
 import jax.numpy as jnp
 import jax.scipy as jsc
 
-from .config import load_config
+from .component import Component
 
 
-class Likelihood(ABC):
+class Likelihood(Component):
     """Any Bayesian Likelihood object :math:`\\mathcal{L}(d|\\theta)`.
-
-    Parameters
-    ----------
-    parameters : list[str]
-        A list of parameters expected for any function that takes in
-        :math:`\\theta`.
     """
-    parameters: list[str]
-    default_restrictions: dict = {}
-
-    def __init__(self, config: str | dict | None = None, **kwargs):
-        self.config = load_config(config, **kwargs)
-        self.default_restrictions = self.config.get("restrict", {})
-
     @abstractmethod
     def get_model(self, theta, /, **kwargs):
         """The model function :math:`\\mu(\\theta)`.
@@ -82,11 +69,9 @@ class GaussianLikelihood(Likelihood):
         covariance = self.get_covariance(theta, **kwargs)
         return jnp.linalg.cholesky(covariance)
 
-    def get_whitened_residual(self, theta, /, **kwargs):
-        mu = self.get_model(theta, **kwargs)
-        r = self.data_vec - mu
+    def whiten(self, a, theta, /, **kwargs):
         L = self.get_covariance_cholesky(theta, **kwargs)
-        return jsc.linalg.solve_triangular(L, r, lower=True)
+        return jsc.linalg.solve_triangular(L, a, lower=True)
 
     def loglike(self, theta, /, **kwargs):
         return -0.5 * self.chisquare(theta, **kwargs) + self.logp_const
@@ -102,13 +87,14 @@ class GaussianLikelihood(Likelihood):
             each entry should match the name given by this class' `parameters`
             member.
         """
-        w = self.get_whitened_residual(theta, **kwargs)
+        mu = self.get_model(theta, **kwargs)
+        r = self.data_vec - mu
+        w = self.whiten(r, theta, **kwargs)
         return jnp.sum(w ** 2)
 
     def fisher(self, theta, /, **kwargs):
         J = jax.jacfwd(lambda x: self.get_model(x, **kwargs))(theta)
-        L = self.get_covariance_cholesky(theta, **kwargs)
-        W = jsc.linalg.solve_triangular(L, J, lower=True)
+        W = self.whiten(J, theta, **kwargs)
 
         return W.T @ W
 

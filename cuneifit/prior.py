@@ -1,6 +1,7 @@
 from __future__ import annotations
 import jax
 import jax.numpy as jnp
+import jax.scipy as jsc  # noqa: F401
 from collections.abc import Callable
 
 
