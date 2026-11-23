@@ -351,6 +351,7 @@ class CMBOnly(GaussianLikelihood):
 
         return self.calibrate_spectra(spec, theta)
 
+    @partial(jax.jit, static_argnums=(0,))
     def get_model(self, theta, /, *, cls, **kwargs):
         """ Get the binned data model. """
         model = self.get_unbinned_model(theta, cls)
@@ -363,10 +364,13 @@ class CMBNull(MultiFrequency):
 
         self.inv_cov = jnp.linalg.inv(self.covariance)
 
-    def get_model(self, theta, /, *, foregrounds, experiments, **kwargs):
+    @partial(jax.jit, static_argnums=(0,))
+    def get_model(self, theta, /, *, foregrounds, **kwargs):
+        from .cosmopower import CMB
         cls = {k: jnp.zeros(self.lmax+1) for k in self.requested_cls}
-        return super().get_model(theta, foregrounds=foregrounds, cls=cls,
-                                 experiments=experiments, **kwargs)
+        cmb = CMB(spectra=cls)
+        return super().get_model(theta, foregrounds=foregrounds, cls=cmb,
+                                 **kwargs)
 
     def chisquare(self, theta, /, **kwargs):
         m = self.get_model(theta, **kwargs)
