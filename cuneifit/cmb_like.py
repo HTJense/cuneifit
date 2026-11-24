@@ -130,11 +130,10 @@ class MultiFrequency(GaussianLikelihood):
         )
         self.inv_cov = jnp.linalg.inv(self.covariance)
         self.covariance_L = jnp.linalg.cholesky(self.covariance)
-        self.cov_L_inv = jnp.linalg.cholesky(self.inv_cov)
-        self.data_xi = self.cov_L_inv @ self.data_vec
+        self.data_xi = jsc.linalg.solve_triangular(self.covariance_L, self.data_vec, lower=True)
 
     def whiten(self, a, theta, /, **kwargs):
-        return self.cov_L_inv @ a
+        return jsc.linalg.solve_triangular(self.covariance_L, a, lower=True)
 
     def chisquare(self, theta, /, **kwargs):
         mu = self.get_model(theta, **kwargs)
@@ -142,7 +141,7 @@ class MultiFrequency(GaussianLikelihood):
         w = y - self.data_xi
         return jnp.sum(w ** 2)
 
-    def bin_spectra(self, spec):
+    def bin_spectra(self, spec, **kwargs):
         model_vec = []
         for block in self.spec_meta:
             xy = block["spec"]
@@ -155,7 +154,7 @@ class MultiFrequency(GaussianLikelihood):
 
         return jnp.concatenate(model_vec)
 
-    def calibrate_spectra(self, spectra, theta):
+    def calibrate_spectra(self, theta, /, *, spectra, **kwargs):
         """ spectra is a (xy, ell, exp1, exp2) array
             for each pair of (exp1, exp2), we divide the entry by the
             respective calibration factor. """
@@ -179,25 +178,26 @@ class MultiFrequency(GaussianLikelihood):
 
         return jnp.stack(res)
 
-    def get_unbinned_model(self, theta, cls, foregrounds):
+    def get_unbinned_model(self, theta, /, *, cls, foregrounds, **kwargs):
         """ Project (cls) from (xy, ell) to (xy, exp1, exp2, ell) and add
             foregrounds."""
         ix = jnp.array([
             foregrounds.experiments.index(e)
             for e in self.experiments
         ])
-        spec = jnp.stack([
+        spectra = jnp.stack([
             cls.spectra[xy][None, None, self.ells]
             + foregrounds.spectra[xy][jnp.ix_(ix, ix, self.ells)]
             for xy in self.requested_cls
         ])
 
-        return self.calibrate_spectra(spec, theta)
+        return self.calibrate_spectra(theta, spectra=spectra, **kwargs)
 
     @partial(jax.jit, static_argnums=(0,))
-    def get_model(self, theta, *, cls, foregrounds, **kwargs):
+    def get_model(self, theta, /, *, cls, foregrounds, **kwargs):
         """ Get the binned data model. """
-        model = self.get_unbinned_model(theta, cls, foregrounds)
+        model = self.get_unbinned_model(theta, cls=cls,
+                                        foregrounds=foregrounds, **kwargs)
         return self.bin_spectra(model)
 
     def design_matrix(self, theta, n_ig=1, **kwargs):

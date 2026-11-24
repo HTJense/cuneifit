@@ -21,10 +21,9 @@ class Theory(Component):
         ...
 
     @property
-    @abstractmethod
     def inputs(self) -> tuple[str]:
-        """Flags any other products that this Theory object can compute."""
-        ...
+        """Flags any other products that this Theory object needs to ingest."""
+        return ()
 
     @property
     @abstractmethod

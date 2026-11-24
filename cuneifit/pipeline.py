@@ -306,7 +306,7 @@ class Pipeline:
             def make_model(like, idx):
                 def model(x):
                     x_f = self.expand(x)
-                    products = self.compute(x_f)
+                    products = self.compute(x)
                     return like.get_model(x_f[idx], **products)
                 return model
 
@@ -316,24 +316,6 @@ class Pipeline:
                 self.like_models.append(jax.jit(make_model(like, idx)))
 
         return self.like_models
-
-    def get_theory_jacobians(self) -> list[Callable]:
-        """ Get a list of jacobians functions for all theory components.
-        """
-        if self.th_jacobians is None:
-            def make_jac(th, idx):
-                def model(x):
-                    x_f = self.expand(x)
-                    products = self.compute(x_f)
-                    return th.get_model(x_f[idx], **products)
-                return model
-
-            self.th_jacobians = []
-
-            for idx, th in zip(self.th_indices, self.theories):
-                self.th_jacobians.append(jax.jit(make_model(th, idx)))
-
-        return self.th_jacobians
 
     def get_likelihood_jacobians(self) -> list[Callable]:
         """ Get a list of model jacobian functions for all likelihoods (if such
