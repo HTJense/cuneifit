@@ -8,6 +8,7 @@ import os
 
 import cuneifit
 import cuneifit.plots
+from .component import build_component
 from . import config
 
 try:
@@ -51,36 +52,39 @@ def main(argv: list[str] | None = None) -> int:
         os.makedirs(dirname, exist_ok=True)
 
     # Build the pipeline.
+    search_dirs = []
+    if os.path.exists(args.run_file):
+        search_dirs.append(os.path.dirname(os.path.abspath(args.run_file)))
+    search_dirs.append(os.getcwd())
+
     components = []
-    component_config = run_config["components"]
-    for i, entry in enumerate(component_config):
+    for i, entry in enumerate(run_config["components"]):
         for name, conf in entry.items():
-            try:
-                comp = getattr(cuneifit, name)(conf)
-                components.append(comp)
-                run_config["components"][i][name] = comp.config
-            except AttributeError:
-                raise RuntimeError("Failed to find cuneifit component "
-                                   f"{name}.")
+            comp, conf = build_component(name, conf, search_dirs)
+            components.append(comp)
+            run_config["components"][i][name] = conf
 
     config.save_config(output + ".config.yaml", run_config)
 
     # Add a prior if requested.
     priors = []
+
+    def build_prior(dist, settings):
+        logpdf = getattr(jsc.stats, dist).logpdf
+        return lambda x: logpdf(x, **settings)
+
     for prior in run_config.get("priors", []):
-        params = prior["par"]
+        params = prior.pop("par")
         if type(params) is str:
             params = [params]
-        dist = prior.get("dist", "norm")
+        dist = prior.pop("dist", "norm")
 
         if hasattr(jsc.stats, dist):
             settings = {
-                k: v for k, v in prior.items() if k not in ["dist", "par"]
+                k: v for k, v in prior.items()
             }
 
-            logpi = lambda x, dist=dist, settings=settings: (  # noqa: E731
-                getattr(jsc.stats, dist).logpdf(x, **settings)
-            )
+            logpi = build_prior(dist, settings)
             priors.append((params, logpi))
         else:
             raise RuntimeError(f"Unknown probability function {dist}.")
@@ -88,6 +92,7 @@ def main(argv: list[str] | None = None) -> int:
     if len(priors) > 0:
         prior = cuneifit.Prior()
         for params, logpi in priors:
+            logger.info(f"Adding manual prior with params={params}.")
             prior.add_prior(logpi, func_pars=params)
         components.append(prior)
 
@@ -125,10 +130,10 @@ def main(argv: list[str] | None = None) -> int:
         logger.info("Optimizing parameters.")
 
         num_runs = min_args.get("runners", 1)
-        method = min_args.get("method", "adam")
-        patience = min_args.get("patience", 10 + len(theta) * 5)
+        method = min_args.get("method", "lbfgs")
+        patience = min_args.get("patience", 1)
         min_steps = min_args.get("min_steps", 1)
-        max_steps = min_args.get("max_steps", 100 + len(theta) * 50)
+        max_steps = min_args.get("max_steps", 10 + len(theta) * 5)
         start_spread = min_args.get("start_spread", 1.0)
         rtol = min_args.get("rtol", 0.0)
         atol = min_args.get("atol", 1e-2)

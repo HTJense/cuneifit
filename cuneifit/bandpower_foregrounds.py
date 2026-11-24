@@ -1,7 +1,10 @@
+from dataclasses import dataclass, field
+from functools import partial
 import os
 
+import jax
+from jax import numpy as jnp
 import numpy as np
-import jax.numpy as jnp
 import sacc
 from scipy import constants
 
@@ -25,10 +28,15 @@ def _trapz_weights(nu):
     return jnp.concatenate([d[:1] / 2, (d[1:] + d[:-1]) / 2, d[-1:] / 2])
 
 
-class BandpowerForegrounds(Theory):
-    def __init__(self, config: str | dict | None, **kwargs):
-        super().__init__(config, **kwargs)
+@jax.tree_util.register_dataclass
+@dataclass
+class Foregrounds:
+    spectra: dict
+    experiments: tuple = field(metadata={"static": True})
 
+
+class BandpowerForegrounds(Theory):
+    def initialize(self, **kwargs):
         self.lmax = self.config["lmax"]
         self.ells = jnp.arange(2, self.lmax+1)
         self.experiments = self.config["experiments"]
@@ -174,27 +182,26 @@ class BandpowerForegrounds(Theory):
 
         return nus, bps
 
+    @partial(jax.jit, static_argnums=(0,))
     def get_foregrounds(self, theta):
-        nu, bp = self.apply_bandpass_shifts(theta[self.bp_index])
+        fg_shape = (len(self.experiments), len(self.experiments), self.lmax+1)
 
-        foregrounds = {
-            "experiments": self.experiments
-        }
+        nu, bp = self.apply_bandpass_shifts(theta[self.bp_index])
+        foregrounds = {}
 
         for cl in self.foreground_components:
-            fg_total = jnp.zeros((self.lmax+1, len(self.experiments),
-                                  len(self.experiments)))
+            fg_total = jnp.zeros(fg_shape)
 
             for idx, fg in zip(self.fg_indices[cl],
                                self.foreground_components[cl]):
                 theta_fg = theta[idx]
-                fg_total = fg_total.at[self.ells].add(
+                fg_total = fg_total.at[..., self.ells].add(
                     fg(self.ells, nu, bp, theta_fg)
                 )
 
             foregrounds[cl] = fg_total
 
-        return foregrounds
+        return Foregrounds(spectra=foregrounds, experiments=self.experiments)
 
     def compute(self, theta, /, **kwargs):
         return {"foregrounds": self.get_foregrounds(theta)}
@@ -205,4 +212,4 @@ class BandpowerForegrounds(Theory):
 
     @property
     def outputs(self):
-        return ("foregrounds",)
+        return ("foregrounds", "experiments")

@@ -1,10 +1,12 @@
+from functools import partial
+import logging
+from typing import Callable, Optional
+
 import jax
-from jax.sharding import NamedSharding, PartitionSpec
 import jax.numpy as jnp
 import jax.scipy as jsc
-import logging
+from jax.sharding import NamedSharding, PartitionSpec
 import numpy as np
-from typing import Callable, Optional
 
 from .likelihood import Likelihood, GaussianLikelihood
 from .prior import Prior
@@ -25,9 +27,6 @@ class Pipeline:
         ----------
         components : list
             A list of components (i.e. Theory and Likelihood objects).
-
-        prior : Optional[Prior]
-            A prior contribution object.
         """
         used_components = []
         for comp in components:
@@ -39,12 +38,15 @@ class Pipeline:
 
         components = used_components
         self.components = components
-        self.priors = [comp for comp in self.components
-                       if isinstance(comp, Prior)]
         self.theories = [comp for comp in self.components
                          if isinstance(comp, Theory)]
         self.likelihoods = [comp for comp in self.components
                             if isinstance(comp, Likelihood)]
+        self.priors = [comp for comp in self.components
+                       if isinstance(comp, Prior)] \
+                       + [comp.default_priors
+                          for comp in self.likelihoods + self.theories
+                          if comp.default_priors is not None]
 
         self.parameters_full = list(dict.fromkeys(
             p for comp in self.components for p in comp.parameters
@@ -80,8 +82,9 @@ class Pipeline:
             idx.copy() for idx in self.like_indices
         ]
 
-        self.jacobians = None
-        self.models = None
+        self.th_jacobians = None
+        self.like_jacobians = None
+        self.like_models = None
 
         self.restrict({}, include_defaults=True)
         self.jeffreys = False
@@ -140,8 +143,12 @@ class Pipeline:
             ], dtype=int)
 
         # Clear the Jacobians cache (they should be re-built).
-        self.jacobians = None
-        self.models = None
+        self.th_jacobians = None
+        self.like_jacobians = None
+        self.th_models = None
+
+        # Clear the jax cache (forces re-computation of jitted functions).
+        jax.clear_caches()
 
     def get_default_restrictions(self) -> dict:
         restrict = {}
@@ -171,6 +178,7 @@ class Pipeline:
         """
         return {p: theta[i] for i, p in enumerate(self.parameters)}
 
+    @partial(jax.jit, static_argnums=(0,))
     def expand(self, theta_free: jnp.ndarray) -> jnp.ndarray:
         if theta_free.shape == self.theta_default.shape:
             # This vector has already been expanded, so don't do it again!
@@ -178,6 +186,7 @@ class Pipeline:
 
         return self.theta_default.at[self.free_to_full].set(theta_free)
 
+    @partial(jax.jit, static_argnums=(0,))
     def compute(self, theta: jnp.ndarray | dict) -> dict:
         """ Iterate through all Theory objects and compute their products.
 
@@ -217,6 +226,7 @@ class Pipeline:
 
         return products
 
+    @partial(jax.jit, static_argnums=(0,))
     def logprior(self, theta: jnp.ndarray) -> float:
         """ Compute the log-prior contribution.
 
@@ -240,6 +250,7 @@ class Pipeline:
 
         return logpi
 
+    @partial(jax.jit, static_argnums=(0,))
     def loglike(self, theta: jnp.ndarray) -> float:
         """ Compute all likelihood values and yield the log-likelihood.
 
@@ -260,6 +271,7 @@ class Pipeline:
 
         return loglike
 
+    @partial(jax.jit, static_argnums=(0,))
     def logposterior(self, theta: jnp.ndarray) -> float:
         """ Alias for `logprior(theta) + loglike(theta)`.
 
@@ -272,6 +284,7 @@ class Pipeline:
         """
         return self.logprior(theta) + self.loglike(theta)
 
+    @partial(jax.jit, static_argnums=(0,))
     def logposterior_dict(self, params: dict) -> float:
         """ Compute the log-posterior, using a dictionary as input. Useful for
             jax pytree functions.
@@ -285,39 +298,39 @@ class Pipeline:
         theta = self.params_to_vec(params)
         return self.logposterior(theta)
 
-    def get_models(self) -> list[Callable]:
+    def get_likelihood_models(self) -> list[Callable]:
         """ Get a list of data model functions for all likelihoods (if such
             a function exists).
         """
-        if self.models is None:
+        if self.like_models is None:
             def make_model(like, idx):
                 def model(x):
                     x_f = self.expand(x)
-                    products = self.compute(x_f)
+                    products = self.compute(x)
                     return like.get_model(x_f[idx], **products)
                 return model
 
-            self.models = []
+            self.like_models = []
 
             for idx, like in zip(self.like_indices, self.likelihoods):
-                self.models.append(make_model(like, idx))
+                self.like_models.append(jax.jit(make_model(like, idx)))
 
-        return self.models
+        return self.like_models
 
-    def get_jacobians(self) -> list[Callable]:
+    def get_likelihood_jacobians(self) -> list[Callable]:
         """ Get a list of model jacobian functions for all likelihoods (if such
             a function exists).
         """
-        if self.jacobians is None:
-            models = self.get_models()
-            self.jacobians = []
+        if self.like_jacobians is None:
+            models = self.get_likelihood_models()
+            self.like_jacobians = []
 
-            for idx, mod, like in zip(self.like_indices, models,
-                                      self.likelihoods):
-                self.jacobians.append(jax.jacfwd(mod))
+            for mod, like in zip(models, self.likelihoods):
+                self.like_jacobians.append(jax.jit(jax.jacfwd(mod)))
 
-        return self.jacobians
+        return self.like_jacobians
 
+    @partial(jax.jit, static_argnums=(0,))
     def fisher(self, theta: jnp.ndarray) -> jnp.ndarray:
         """ Compute the Fisher matrix of this pipeline at a given parameter
             set.
@@ -333,7 +346,7 @@ class Pipeline:
 
         theta_full = self.expand(theta)
         products = self.compute(theta_full)
-        jac = self.get_jacobians()
+        jac = self.get_likelihood_jacobians()
 
         if self.prior is not None:
             idx = self.prior_free_indices
@@ -462,6 +475,12 @@ class Pipeline:
         theta_from_z = lambda z: theta_start + L @ z  # noqa: E731
         loss = lambda z: -self.logposterior(theta_from_z(z))  # noqa: E731
 
+        if is_lbfgs:
+            value_and_grad = jax.jit(optax.value_and_grad_from_state(loss))
+        else:
+            value_and_grad = jax.jit(jax.value_and_grad(loss))
+
+        # TODO: vmap this loop
         for i in it_runs:
             z = starting_points[i]
 
@@ -473,11 +492,6 @@ class Pipeline:
                                    "a valid method.")
             state = optimizer.init(z)
 
-            if is_lbfgs:
-                value_and_grad = jax.jit(optax.value_and_grad_from_state(loss))
-            else:
-                value_and_grad = jax.jit(jax.value_and_grad(loss))
-
             best = z
             best_lp = loss(best)
             wait = 0
@@ -487,6 +501,7 @@ class Pipeline:
             if tqdm is not None:
                 tbar = tqdm(total=max_steps, leave=False)
 
+            # TODO: lax.while_loop
             while True:
                 steps += 1
                 if is_lbfgs:
@@ -623,7 +638,7 @@ class Pipeline:
         if num_steps is None:
             num_steps = check_every * (len(self.parameters) + 5)
         if converge_target is None:
-            converge_target = {"Rhat": 1.01}
+            converge_target = {"Rhatm1": 1e-2}
 
         assert num_samplers > 1, "Must run at least 2 samplers."
 
@@ -853,10 +868,11 @@ class Pipeline:
                 state, info = kernel(sample_key, state)
                 info = process_info(info)
 
-                result = (
-                    state.logdensity, loglike_z(state.position),
-                    logprior_z(state.position), state.position, info
-                )
+                logpost = state.logdensity
+                logprior = logprior_z(state.position)
+                loglike = logpost - logprior
+
+                result = (logpost, loglike, logprior, state.position, info)
 
                 return (state, key), result
 

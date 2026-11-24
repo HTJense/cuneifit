@@ -9,9 +9,7 @@ from .theory import Theory
 
 
 class LensingCorrections(Theory):
-    def __init__(self, config: str | dict | None = None, **kwargs):
-        super().__init__(config, **kwargs)
-
+    def initialize(self):
         data_path = resolve_data(self.config["data_folder"])
 
         fiducial = sacc.Sacc.load_fits(

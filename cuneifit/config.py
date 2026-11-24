@@ -65,7 +65,8 @@ def add_data_path(path: str):
     be resolved, and the file does not exist in the current working directory,
     the the given path will be searched as well.
     """
-    search_data_paths.append(path)
+    if path not in search_data_paths:
+        search_data_paths.append(path)
 
 
 def add_config_path(path: str):
@@ -73,7 +74,8 @@ def add_config_path(path: str):
     needs to be resolved, and the file does not exist in the current working
      directory, the the given path will be searched as well.
     """
-    search_config_paths.append(path)
+    if path not in search_config_paths:
+        search_config_paths.append(path)
 
 
 # Check if a configuration file exists here. Otherwise, load it from here.

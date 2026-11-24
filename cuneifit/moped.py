@@ -6,9 +6,7 @@ from .config import resolve_data
 
 
 class Moped(MultiFrequency):
-    def __init__(self, config: str | dict | None, **kwargs):
-        super().__init__(config, **kwargs)
-
+    def initialize(self):
         moped_file = resolve_data(self.config["moped_file"])
         self.moped_B = jnp.array(np.loadtxt(moped_file))
         self.covariance = jnp.eye(self.covariance.shape[0])

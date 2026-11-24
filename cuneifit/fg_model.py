@@ -24,7 +24,7 @@ class CrossProductModel:
         for i, (nu, bp) in enumerate(zip(nus, bps)):
             f_nu = self.sed(nu, theta_sed)
             f_nus = f_nus.at[:, i].set(_bp_int(nu, f_nu, bp))
-        return jnp.einsum("...i,...ij,...il->...ijl", cl, f_nus, f_nus)
+        return jnp.einsum("...i,...ij,...il->...jli", cl, f_nus, f_nus)
 
     @property
     def n(self):
@@ -66,21 +66,21 @@ class CorrelatedCrossProductModel:
         cl2 = self.power2(ell, theta_cl2)
         clx = self.powerx(ell, theta_clx)
 
-        f_nus1 = jnp.zeros((len(ell), len(nus)))
-        f_nus2 = jnp.zeros((len(ell), len(nus)))
+        f_nus1 = jnp.zeros((len(nus), len(ell)))
+        f_nus2 = jnp.zeros((len(nus), len(ell)))
         for i, (nu, bp) in enumerate(zip(nus, bps)):
             f_nu = self.sed1(nu, theta_s1)
-            f_nus1 = f_nus1.at[:, i].set(_bp_int(nu, f_nu, bp))
+            f_nus1 = f_nus1.at[i, :].set(_bp_int(nu, f_nu, bp))
 
             f_nu = self.sed2(nu, theta_s2)
-            f_nus2 = f_nus2.at[:, i].set(_bp_int(nu, f_nu, bp))
+            f_nus2 = f_nus2.at[i, :].set(_bp_int(nu, f_nu, bp))
 
-        comp1 = jnp.einsum("...i,...ij,...il->...ijl", cl1, f_nus1, f_nus1)
-        comp2 = jnp.einsum("...i,...ij,...il->...ijl", cl2, f_nus2, f_nus2)
-        compx = (clx[:, None, None] * jnp.sqrt(self.power1.amp(theta_cl1)
+        comp1 = jnp.einsum("...il,...jl,...l->...ijl", f_nus1, f_nus1, cl1)
+        comp2 = jnp.einsum("...il,...jl,...l->...ijl", f_nus2, f_nus2, cl2)
+        compx = (clx[None, None, :] * jnp.sqrt(self.power1.amp(theta_cl1)
                  * self.power2.amp(theta_cl2))
-                 * (f_nus1[:, :, None] * f_nus2[:, None, :]
-                    + f_nus1[:, None, :] * f_nus2[:, :, None]))
+                 * (f_nus1[:, None, :] * f_nus2[None, :, :]
+                    + f_nus1[None, :, :] * f_nus2[:, None, :]))
 
         return comp1 + comp2 - compx
 

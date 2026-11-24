@@ -1,7 +1,12 @@
 from __future__ import annotations
 import jax
 import jax.numpy as jnp
+import jax.scipy as jsc  # noqa: F401
 from collections.abc import Callable
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Prior:
@@ -55,19 +60,38 @@ class Prior:
     def __init__(self, *priors):
         self.priors = []
         self.H_priors = []
+        # All parameters, in order of appearance.
         self.parameters = []
+        # Individual parameter names per prior.
+        self.individual_parameters = []
         self.indices = []
 
         for logpi in priors:
             self.add_prior(logpi)
 
-    def add_prior(self, logpi: Callable[[jnp.ndarray], float], /,
+    @staticmethod
+    def extract_parameter_names(function) -> list[str]:
+        # Reads the names of the parameters from the function signature.
+        import inspect
+
+        sig = inspect.signature(function)
+        return [
+            par.name for par in sig.parameters.values()
+            if par.kind in (par.POSITIONAL_ONLY, par.POSITIONAL_OR_KEYWORD)
+            and par.default is par.empty
+        ]
+    
+    def add_prior(self, logpi: str | Callable[[jnp.ndarray], float], /,
                   func_pars: list | None = None):
-        self.priors.append(logpi)
+        if isinstance(logpi, str):
+            logpi = eval(logpi)
 
         if func_pars is None:
-            co = logpi.__code__
-            func_pars = co.co_varnames[:co.co_argcount]
+            func_pars = self.extract_parameter_names(logpi)
+
+        func_pars = list(func_pars)
+        self.priors.append(logpi)
+        self.individual_parameters.append(func_pars)
 
         func_idx = []
         for i, p in enumerate(func_pars):
@@ -93,18 +117,23 @@ class Prior:
 
         return res
 
-    def __add__(self, other: Prior | Callable | list[Callable]):
+    def extend(self, other: Prior | Callable | list | tuple | None):
+        # Add another prior into this prior.
         if other is None:
-            return self
-        elif type(other) is Prior:
-            for prior in other.priors:
-                self.add_prior(prior)
-        elif type(other) is Callable:
+            return
+        elif isinstance(other, Prior):
+            for prior, params in zip(other.priors, other.individual_parameters):
+                self.add_prior(prior, func_pars=params)
+        elif callable(other) or isinstance(other, str):
             self.add_prior(other)
-        elif type(other) is list:
+        elif isinstance(other, (list, tuple)):
             for o in other:
                 self.__add__(o)
         else:
             raise TypeError(f"Cannot add type {type(other)} to Prior.")
 
-        return self
+    def __add__(self, other: Prior | Callable | list[Callable]):
+        result = Prior()
+        result.extend(self)
+        result.extend(other)
+        return result
